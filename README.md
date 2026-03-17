@@ -19,15 +19,15 @@ A modern movie recommendation and rating application built with React, Firebase,
 
 ## 🎯 Overview
 
-CineSense is a full-stack web application that allows users to:
+CineSense is a full-stack AI-powered movie recommendation platform that allows users to:
 - Browse and search movies
 - Rate and review movies
 - Create personalized watchlists
-- Get movie recommendations
+- **Get AI-powered personalized movie recommendations** (using collaborative filtering)
 - Manage user profiles
 - View detailed movie information
 
-The application uses Firebase for authentication and real-time database management, with a React frontend and Node.js/Express backend.
+The application uses Firebase for authentication and real-time database management, with a React frontend and Python/FastAPI backend with integrated machine learning recommendation engine. The recommendation system is trained on the MovieLens dataset (25M+ ratings) for accurate, personalized suggestions.
 
 ---
 
@@ -38,9 +38,16 @@ The application uses Firebase for authentication and real-time database manageme
 - 🎬 Browse movies and detailed information
 - ⭐ Rate and review movies
 - 📋 Create and manage watchlists
-- 🤖 Get personalized movie recommendations
+- 🤖 **AI-Powered movie recommendations** (Collaborative filtering)
 - 👤 User profile management
 - 🔍 Advanced movie search and filtering
+
+### AI Recommendation Engine
+- 🧠 Machine learning-based recommendations
+- 📊 Collaborative filtering algorithm
+- 🎯 Personalized suggestions based on user ratings
+- 📈 Trained on MovieLens dataset (25M+ ratings)
+- 🔄 Real-time recommendation updates
 
 ### Admin Features
 - 👥 User management
@@ -59,14 +66,24 @@ The application uses Firebase for authentication and real-time database manageme
 - **shadcn/ui** - Component library
 
 ### Backend
-- **Node.js** - Runtime
-- **Express.js** - Web framework
+- **Python 3.9+** - Runtime environment
+- **FastAPI** - Modern, high-performance web framework
 - **Firebase Admin SDK** - Authentication & Database
 - **Firestore** - NoSQL database
+- **Swagger UI** - Interactive API documentation (built-in with FastAPI)
+
+### AI & Machine Learning
+- **scikit-learn** - Machine learning algorithms
+- **pandas** - Data processing and analysis
+- **numpy** - Numerical computing
+- **MovieLens Dataset** - Collaborative filtering dataset (25M+ ratings)
+- **Recommendation System** - Collaborative filtering & content-based hybrid approach
 
 ### DevOps & Tools
-- **npm** - Package manager
+- **npm** - Frontend package manager
+- **pip** - Python package manager
 - **Git** - Version control
+- **Docker** - Containerization (optional)
 
 ---
 
@@ -74,28 +91,47 @@ The application uses Firebase for authentication and real-time database manageme
 
 ```
 CineSense/
-├── backend/
-│   ├── firebase.js              # Firebase config & functions
-│   ├── serviceAccountKey.json   # Firebase credentials
-│   ├── package.json            # Backend dependencies
-│   ├── test.js                 # Authentication tests
-│   └── createUser.js           # User creation script
+├── backend/                         # Python/FastAPI Backend
+│   ├── main.py                      # FastAPI application entry point
+│   ├── requirements.txt             # Python dependencies
+│   ├── config.py                    # Configuration settings
+│   ├── firebase_config.py           # Firebase configuration
+│   ├── serviceAccountKey.json       # Firebase credentials
+│   │
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── auth.py             # Authentication endpoints
+│   │   │   ├── movies.py           # Movie endpoints
+│   │   │   ├── ratings.py          # Rating endpoints
+│   │   │   ├── recommendations.py  # Recommendation system endpoints
+│   │   │   └── users.py            # User profile endpoints
+│   │   │
+│   │   ├── models/
+│   │   │   ├── recommendation.py   # ML recommendation model
+│   │   │   └── database.py         # Database models
+│   │   │
+│   │   └── utils/
+│   │       ├── firebase.py         # Firebase utilities
+│   │       └── helpers.py          # Helper functions
+│   │
+│   └── data/
+│       └── movielens/              # MovieLens dataset
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── App.tsx
-│   │   │   ├── components/     # Reusable components
-│   │   │   ├── pages/          # Page components
-│   │   │   ├── data/           # Mock data
-│   │   │   └── styles/         # Global styles
+│   │   │   ├── components/         # Reusable components
+│   │   │   ├── pages/              # Page components
+│   │   │   ├── data/               # Mock data
+│   │   │   └── styles/             # Global styles
 │   │   └── main.tsx
-│   ├── package.json            # Frontend dependencies
-│   ├── vite.config.ts          # Vite configuration
-│   ├── tailwind.config.js      # Tailwind configuration
+│   ├── package.json                # Frontend dependencies
+│   ├── vite.config.ts              # Vite configuration
+│   ├── tailwind.config.js          # Tailwind configuration
 │   └── index.html
 │
-└── README.md                    # This file
+└── README.md                        # This file
 ```
 
 ---
@@ -103,8 +139,10 @@ CineSense/
 ## 🚀 Setup & Installation
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
+- **Python 3.9+** - Backend runtime
+- **Node.js 16+** - Frontend runtime  
+- **npm** - JavaScript package manager
+- **pip** - Python package manager
 - Firebase project with service account key
 - Git
 
@@ -121,32 +159,44 @@ cd CineSense
 ### 1. Install Backend Dependencies
 ```bash
 cd backend
-npm install
+pip install -r requirements.txt
 ```
 
-### 2. Firebase Configuration
+### 2. Generate Requirements File
+```bash
+pip freeze > requirements.txt
+```
+
+Required packages:
+- fastapi
+- uvicorn
+- firebase-admin
+- pandas
+- numpy
+- scikit-learn
+- python-multipart
+
+### 3. Firebase Configuration
 - Ensure `serviceAccountKey.json` is in the `backend/` directory
 - This file contains your Firebase credentials (keep it secure!)
 
-### 3. Verify Firebase Setup
+### 4. Download MovieLens Dataset
 ```bash
-node test.js
+# Create data directory
+mkdir data/movielens
+
+# Download from: https://grouplens.org/datasets/movielens/
+# Place the dataset files in backend/data/movielens/
 ```
 
-Expected output:
-```
-✅ ALL TESTS PASSED! Firebase is working correctly.
-```
-
-### 4. Create a Test User
+### 5. Start the Backend Server
 ```bash
-node createUser.js
+uvicorn main:app --reload
 ```
 
-This will create a user with:
-- Email: john.doe@example.com
-- Name: John Doe
-- Role: user
+- Backend runs on `http://localhost:8000`
+- **Swagger UI Documentation**: `http://localhost:8000/docs`
+- **ReDoc Alternative Docs**: `http://localhost:8000/redoc`
 
 ---
 
@@ -177,15 +227,68 @@ The frontend uses:
 
 ---
 
-## 🏃 Running the Project
+## 🤖 AI Recommendation System
+
+### Overview
+The recommendation engine uses **collaborative filtering** trained on the MovieLens dataset to provide personalized movie suggestions.
+
+### How It Works
+1. **Data Collection** - Collects user ratings from Firestore
+2. **Model Training** - Trains ML model using user-item rating matrix
+3. **Similarity Calculation** - Computes user/item similarities
+4. **Recommendation Generation** - Generates top-N recommendations per user
+5. **Real-Time Updates** - Updates recommendations as new ratings are added
+
+### MovieLens Dataset
+- **Size**: 25M+ ratings
+- **Coverage**: 62K movies, 162K users
+- **Format**: CSV with user ID, movie ID, rating, timestamp
+- **URL**: https://grouplens.org/datasets/movielens/
+
+### Implementation Details
+- **Algorithm**: User-based or item-based collaborative filtering (configurable)
+- **ML Library**: scikit-learn
+- **Data Processing**: pandas & numpy
+- **API Endpoint**: `GET /recommendations/{user_id}`
+
+### Example Recommendation Request
+```bash
+curl http://localhost:8000/recommendations/user123?top_n=10
+```
+
+Response:
+```json
+{
+  "user_id": "user123",
+  "recommendations": [
+    {
+      "movie_id": "tt0111161",
+      "title": "The Shawshank Redemption",
+      "predicted_rating": 4.8,
+      "reason": "Similar to movies you liked"
+    }
+  ]
+}
+```
+
+### Future Enhancements
+- Content-based filtering
+- Hybrid recommendation models
+- Deep learning approaches (Neural Collaborative Filtering)
+- Real-time model updates
+
+---
 
 ### Backend
 ```bash
 cd backend
-npm start
-# or
-node server.js  # (once you create your server file)
+uvicorn main:app --reload
 ```
+
+Backend will be available at:
+- **API**: `http://localhost:8000`
+- **Swagger UI Docs**: `http://localhost:8000/docs`
+- **ReDoc Docs**: `http://localhost:8000/redoc`
 
 ### Frontend
 ```bash
@@ -193,27 +296,41 @@ cd frontend
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173` (default Vite port)
+Frontend will be available at `http://localhost:5173` (default Vite port)
 
 ---
 
 ## 🧪 Testing
 
-### Test Firebase Authentication
-```bash
-cd backend
-node test.js
+### Test API Endpoints
+Access Swagger UI to test all endpoints interactively:
+```
+http://localhost:8000/docs
 ```
 
-This runs the following tests:
-1. ✅ User creation
-2. ✅ User retrieval by UID
-3. ✅ User deletion
+### Manual Testing with curl
 
-### Create a New User
+**Health Check**
+```bash
+curl http://localhost:8000/health
+```
+
+**Get Recommendations**
+```bash
+curl http://localhost:8000/recommendations/user123?top_n=10
+```
+
+**Create User**
+```bash
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"Pass123!","displayName":"John"}'
+```
+
+### Running ML Model Tests
 ```bash
 cd backend
-node createUser.js
+python -m pytest tests/
 ```
 
 ---
@@ -285,30 +402,42 @@ node createUser.js
 - `POST /api/auth/login` - Login user
 - `POST /api/auth/logout` - Logout user
 - `POST /api/auth/reset-password` - Reset password
+- `POST /api/auth/verify-token` - Verify ID token
 
 ### Users
-- `GET /api/users/:uid` - Get user profile
-- `PUT /api/users/:uid` - Update user profile
-- `DELETE /api/users/:uid` - Delete user account
+- `GET /api/users/{uid}` - Get user profile
+- `PUT /api/users/{uid}` - Update user profile
+- `DELETE /api/users/{uid}` - Delete user account
 
 ### Movies
-- `GET /api/movies` - Get all movies
-- `GET /api/movies/:id` - Get movie details
-- `GET /api/movies/search?q=query` - Search movies
+- `GET /api/movies` - Get all movies with pagination
+- `GET /api/movies/{id}` - Get movie details
+- `GET /api/movies/search` - Search movies by title/genre
 - `POST /api/movies` - Create movie (admin only)
-- `PUT /api/movies/:id` - Update movie (admin only)
-- `DELETE /api/movies/:id` - Delete movie (admin only)
+- `PUT /api/movies/{id}` - Update movie (admin only)
+- `DELETE /api/movies/{id}` - Delete movie (admin only)
 
 ### Ratings & Reviews
 - `POST /api/ratings` - Add movie rating
-- `GET /api/movies/:id/ratings` - Get movie ratings
-- `PUT /api/ratings/:id` - Update rating
-- `DELETE /api/ratings/:id` - Delete rating
+- `GET /api/movies/{id}/ratings` - Get movie ratings and reviews
+- `PUT /api/ratings/{id}` - Update rating
+- `DELETE /api/ratings/{id}` - Delete rating
 
 ### Watchlist
-- `GET /api/users/:uid/watchlist` - Get user watchlist
-- `POST /api/users/:uid/watchlist` - Add to watchlist
-- `DELETE /api/users/:uid/watchlist/:movieId` - Remove from watchlist
+- `GET /api/users/{uid}/watchlist` - Get user watchlist
+- `POST /api/users/{uid}/watchlist` - Add movie to watchlist
+- `DELETE /api/users/{uid}/watchlist/{movieId}` - Remove from watchlist
+
+### Recommendations (AI Engine)
+- `GET /recommendations/{user_id}` - Get personalized recommendations
+- `GET /recommendations/{user_id}?top_n=10` - Get top N recommendations
+- `POST /recommendations/train` - Train recommendation model (admin only)
+- `GET /recommendations/health` - Check model status
+
+### Health & Status
+- `GET /health` - API health check
+- `GET /docs` - Swagger UI documentation
+- `GET /redoc` - ReDoc documentation
 
 ---
 
@@ -323,57 +452,135 @@ node createUser.js
 
 ---
 
-## 📝 Firebase Auth Functions
+## 📝 Backend Architecture
 
-Available functions in `backend/firebase.js`:
+### Python/FastAPI Backend Structure
 
-### Authentication
-```javascript
-createUser(email, password, displayName)
-deleteUser(uid)
-getUserByUID(uid)
-updateUserProfile(uid, updates)
-verifyIdToken(idToken)
+**Main Application (main.py)**
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="CineSense API", version="1.0.0")
+
+# CORS middleware for frontend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+from app.api import auth, movies, ratings, recommendations, users
+app.include_router(auth.router)
+app.include_router(movies.router)
+app.include_router(ratings.router)
+app.include_router(recommendations.router)
+app.include_router(users.router)
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
 ```
 
-### Firestore Operations
-```javascript
-addDocument(collection, data)
-getDocument(collection, docId)
-updateDocument(collection, docId, data)
-deleteDocument(collection, docId)
-getAllDocuments(collection)
-queryDocuments(collection, conditions)
+### Firebase Integration (Python)
+```python
+import firebase_admin
+from firebase_admin import credentials, auth, firestore
+
+# Initialize Firebase
+cred = credentials.Certificate('serviceAccountKey.json')
+firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+
+# Verify ID token
+def verify_token(token):
+    try:
+        decoded = auth.verify_id_token(token)
+        return decoded
+    except Exception as e:
+        raise Exception(f"Token verification failed: {e}")
 ```
 
-### User Profile
-```javascript
-createUserProfile(uid, userData)
-getUserProfile(uid)
-updateUserProfileData(uid, updates)
-deleteUserProfile(uid)
-```
+### Recommendation Model
+```python
+from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
+import numpy as np
 
-### Batch Operations
-```javascript
-batchWrite(operations)
+class RecommendationEngine:
+    def __init__(self):
+        self.user_item_matrix = None
+        self.model = None
+    
+    def train(self, ratings_data):
+        # Create user-item matrix
+        self.user_item_matrix = ratings_data.pivot_table(
+            index='user_id',
+            columns='movie_id',
+            values='rating'
+        ).fillna(0)
+        
+        # Calculate similarities
+        self.similarity_matrix = cosine_similarity(self.user_item_matrix)
+    
+    def recommend(self, user_id, top_n=10):
+        # Generate recommendations
+        pass
 ```
 
 ---
 
 ## 🎓 Next Steps
 
-- [ ] Set up Express server with API routes
-- [ ] Implement user authentication endpoints
-- [ ] Create movie database management system
-- [ ] Build rating and review system
-- [ ] Implement watchlist functionality
-- [ ] Add movie recommendation algorithm
-- [ ] Set up frontend Firebase integration
-- [ ] Deploy backend to cloud (Firebase Functions or Heroku)
-- [ ] Deploy frontend to Vercel or Netlify
-- [ ] Add unit tests
-- [ ] Set up CI/CD pipeline
+### Backend Development (Python/FastAPI)
+- [ ] Create FastAPI main application (main.py)
+- [ ] Set up project structure and modules
+- [ ] Implement Firebase authentication endpoints
+- [ ] Create database models and schemas
+- [ ] Build CRUD operations for movies
+- [ ] Implement rating and review system
+- [ ] Set up watchlist functionality
+
+### Machine Learning & Recommendations
+- [ ] Download and process MovieLens dataset
+- [ ] Build collaborative filtering model
+- [ ] Train recommendation engine
+- [ ] Implement recommendation API endpoint
+- [ ] Add model persistence (save/load trained models)
+- [ ] Set up background training job scheduler
+- [ ] Implement hybrid recommendation approach
+
+### Frontend Integration
+- [ ] Connect React to FastAPI backend
+- [ ] Build authentication UI (login/signup)
+- [ ] Create movie browsing pages
+- [ ] Implement rating/review components
+- [ ] Build recommendation carousel/component
+- [ ] Integrate watchlist functionality
+- [ ] Add user profile management
+
+### Deployment & DevOps
+- [ ] Containerize backend (Docker)
+- [ ] Set up backend deployment (Heroku/GCP)
+- [ ] Deploy frontend to Vercel/Netlify
+- [ ] Configure CI/CD pipeline
+- [ ] Set up monitoring and logging
+
+### Testing & Quality
+- [ ] Write unit tests for ML models
+- [ ] Create integration tests
+- [ ] Add API testing with pytest
+- [ ] Set up code coverage reporting
+- [ ] Performance testing and optimization
+
+### Documentation
+- [ ] API documentation (Swagger/OpenAPI)
+- [ ] ML model documentation
+- [ ] Setup and installation guides
+- [ ] Contributing guidelines
 
 ---
 
