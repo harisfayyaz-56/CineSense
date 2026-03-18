@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Film, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Film, Mail, Lock, Eye, EyeOff, AlertCircle, Loader } from "lucide-react";
+import { signUpUser, signInUser } from "../../config/authService";
 
 interface LoginProps {
   onLogin: (email: string, password: string) => void;
@@ -11,11 +12,39 @@ export function Login({ onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
+    setError("");
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        // Sign up with Firebase
+        if (!name || !email || !password) {
+          setError("Please fill in all fields");
+          setLoading(false);
+          return;
+        }
+        await signUpUser(email, password, name);
+      } else {
+        // Sign in with Firebase
+        if (!email || !password) {
+          setError("Please fill in all fields");
+          setLoading(false);
+          return;
+        }
+        await signInUser(email, password);
+      }
+      
+      // Call parent callback for successful login
       onLogin(email, password);
+    } catch (err: any) {
+      setError(err.message || "Authentication failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,6 +72,14 @@ export function Login({ onLogin }: LoginProps) {
                 : "Sign in to continue to your recommendations"}
             </p>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
@@ -128,8 +165,10 @@ export function Login({ onLogin }: LoginProps) {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {loading && <Loader className="w-4 h-4 animate-spin" />}
               {isSignUp ? "Create Account" : "Sign In"}
             </button>
           </form>

@@ -1,14 +1,75 @@
-import { User, Mail, Calendar, Star, Film, Heart, Award, Settings, Edit } from "lucide-react";
+import { useEffect, useState } from "react";
+import { User, Mail, Calendar, Star, Film, Heart, Award, Settings, Edit, Loader } from "lucide-react";
 import { mockMovies } from "../data/mockMovies";
+import { getUserProfile, updateUserProfile, getCurrentUser } from "../../config/authService";
+import { UserProfile } from "../../config/authService";
 
 interface ProfileProps {
-  userName: string;
-  userEmail: string;
-  watchlist: number[];
-  userRatings: Record<number, number>;
+  userName?: string;
+  userEmail?: string;
+  watchlist?: number[];
+  userRatings?: Record<number, number>;
 }
 
-export function Profile({ userName, userEmail, watchlist, userRatings }: ProfileProps) {
+export function Profile({ userName: defaultName, userEmail: defaultEmail, watchlist: defaultWatchlist = [], userRatings: defaultRatings = {} }: ProfileProps) {
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+
+  // Use real data from Firestore if available, otherwise fall back to props
+  const userName = userProfile?.displayName || defaultName || "User";
+  const userEmail = userProfile?.email || defaultEmail || "user@example.com";
+  const watchlist = defaultWatchlist;
+  const userRatings = defaultRatings;
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+          const profile = await getUserProfile(currentUser.uid);
+          if (profile) {
+            setUserProfile(profile);
+            setEditName(profile.displayName);
+          }
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  const handleUpdateProfile = async () => {
+    if (!userProfile) return;
+    
+    try {
+      await updateUserProfile(userProfile.uid, {
+        displayName: editName
+      });
+      setUserProfile({ ...userProfile, displayName: editName });
+      setIsEditing(false);
+    } catch (err: any) {
+      setError(err.message || "Failed to update profile");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader className="w-8 h-8 text-purple-600 animate-spin" />
+          <p className="text-zinc-400">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   const ratedMovies = Object.keys(userRatings).length;
   const averageRating = ratedMovies > 0
     ? Object.values(userRatings).reduce((a, b) => a + b, 0) / ratedMovies
@@ -42,6 +103,11 @@ export function Profile({ userName, userEmail, watchlist, userRatings }: Profile
 
   return (
     <div className="min-h-screen bg-zinc-950">
+      {error && (
+        <div className="bg-red-500/10 border-b border-red-500/30 p-4 flex items-center gap-3">
+          <span className="text-red-400 text-sm">{error}</span>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Profile Header */}
         <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl p-8 mb-8 border border-purple-800/30">
@@ -52,7 +118,7 @@ export function Profile({ userName, userEmail, watchlist, userRatings }: Profile
                 <User className="w-16 h-16 text-white" />
               </div>
               <button className="absolute bottom-0 right-0 p-2 bg-zinc-900 rounded-full border-2 border-zinc-950 hover:bg-zinc-800 transition-colors">
-                <Edit className="w-4 h-4 text-white" />
+                <Loader className="w-4 h-4 text-white" />
               </button>
             </div>
 
@@ -60,9 +126,35 @@ export function Profile({ userName, userEmail, watchlist, userRatings }: Profile
             <div className="flex-1">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-white mb-2 capitalize">
-                    {userName}
-                  </h1>
+                  {isEditing ? (
+                    <div className="mb-4 flex gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="text-3xl font-bold text-white bg-zinc-800 border border-zinc-700 rounded px-3 py-1"
+                      />
+                      <button
+                        onClick={handleUpdateProfile}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditName(userName);
+                        }}
+                        className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <h1 className="text-3xl font-bold text-white mb-2 capitalize">
+                      {userName}
+                    </h1>
+                  )}
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2 text-zinc-300">
                       <Mail className="w-4 h-4" />
@@ -70,11 +162,16 @@ export function Profile({ userName, userEmail, watchlist, userRatings }: Profile
                     </div>
                     <div className="flex items-center gap-2 text-zinc-300">
                       <Calendar className="w-4 h-4" />
-                      <span>Member since March 2026</span>
+                      <span>
+                        Member since {userProfile?.createdAt ? new Date(userProfile.createdAt.toDate()).toLocaleDateString() : "March 2026"}
+                      </span>
                     </div>
                   </div>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors"
+                >
                   <Settings className="w-5 h-5" />
                   <span className="hidden md:inline">Edit Profile</span>
                 </button>
