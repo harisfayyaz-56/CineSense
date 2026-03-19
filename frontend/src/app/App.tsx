@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Search } from "./pages/Search";
@@ -10,6 +10,7 @@ import { Feedback } from "./pages/Feedback";
 import { Header } from "./components/Header";
 import { Movie } from "./data/mockMovies";
 import { Toaster } from "./components/ui/sonner";
+import { getCurrentUser, getUserProfile } from "../config/authService";
 
 type Page = "login" | "dashboard" | "search" | "details" | "profile" | "watchlist" | "ratings" | "feedback";
 
@@ -22,12 +23,27 @@ export default function App() {
   const [watchlist, setWatchlist] = useState<number[]>([]);
   const [userRatings, setUserRatings] = useState<Record<number, number>>({});
 
-  const handleLogin = (email: string, password: string) => {
-    // Mock authentication
-    setIsAuthenticated(true);
-    setUserName(email.split("@")[0]);
-    setUserEmail(email);
-    setCurrentPage("dashboard");
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      // Get current user after login
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        // Fetch user profile from Firestore to get the actual display name
+        const profile = await getUserProfile(currentUser.uid);
+        
+        // Set authentication state with real profile data
+        setIsAuthenticated(true);
+        setUserName(profile?.displayName || "User");
+        setUserEmail(email);
+        setCurrentPage("dashboard");
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+      setIsAuthenticated(true);
+      setUserName("User");
+      setUserEmail(email);
+      setCurrentPage("dashboard");
+    }
   };
 
   const handleLogout = () => {
@@ -43,6 +59,25 @@ export default function App() {
       setCurrentPage(page as Page);
     }
   };
+
+  // Check if user is already logged in on app load
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      // User is already logged in, fetch their profile
+      getUserProfile(currentUser.uid)
+        .then((profile) => {
+          setIsAuthenticated(true);
+          setUserName(profile?.displayName || "User");
+          setUserEmail(profile?.email || currentUser.email || "");
+          setCurrentPage("dashboard");
+        })
+        .catch((error) => {
+          console.error("Error loading user profile:", error);
+          setCurrentPage("login");
+        });
+    }
+  }, []);
 
   const handleMovieClick = useCallback((movie: Movie) => {
     setSelectedMovie(movie);
