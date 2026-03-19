@@ -9,7 +9,9 @@ interface LoginProps {
 export function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -22,12 +24,27 @@ export function Login({ onLogin }: LoginProps) {
 
     try {
       if (isSignUp) {
-        // Sign up with Firebase
-        if (!name || !email || !password) {
+        // Validation for signup
+        if (!name || !email || !password || !confirmPassword) {
           setError("Please fill in all fields");
           setLoading(false);
           return;
         }
+
+        // Password length validation
+        if (password.length < 8) {
+          setError("Password must be at least 8 characters long");
+          setLoading(false);
+          return;
+        }
+
+        // Password match validation
+        if (password !== confirmPassword) {
+          setError("Passwords do not match");
+          setLoading(false);
+          return;
+        }
+
         await signUpUser(email, password, name);
       } else {
         // Sign in with Firebase
@@ -143,7 +160,48 @@ export function Login({ onLogin }: LoginProps) {
                   )}
                 </button>
               </div>
+              {isSignUp && (
+                <p className="text-xs text-zinc-400 mt-2">
+                  Password must be at least 8 characters long
+                </p>
+              )}
             </div>
+
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-11 pr-11 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                    required={isSignUp}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                {password && confirmPassword && password === confirmPassword && (
+                  <p className="text-xs text-green-400 mt-2">✓ Passwords match</p>
+                )}
+                {password && confirmPassword && password !== confirmPassword && (
+                  <p className="text-xs text-red-400 mt-2">✗ Passwords do not match</p>
+                )}
+              </div>
+            )}
 
             {!isSignUp && (
               <div className="flex items-center justify-between text-sm">
@@ -177,7 +235,14 @@ export function Login({ onLogin }: LoginProps) {
             <p className="text-zinc-400 text-sm">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError("");
+                  setName("");
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                }}
                 className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
               >
                 {isSignUp ? "Sign In" : "Sign Up"}
