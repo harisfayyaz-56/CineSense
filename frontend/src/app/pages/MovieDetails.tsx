@@ -13,6 +13,62 @@ interface MovieDetailsProps {
   userRatings: Record<number, number>;
 }
 
+/**
+ * Helper function: Find movies with similar genres
+ * Filters out current movie and returns up to MAX_SIMILAR_MOVIES recommendations
+ */
+const MAX_SIMILAR_MOVIES = 6;
+
+const findSimilarMovies = (currentMovie: Movie, allMovies: Movie[]): Movie[] => {
+  return allMovies
+    .filter(
+      (m) =>
+        m.id !== currentMovie.id &&
+        m.genre.some((g) => currentMovie.genre.includes(g))
+    )
+    .slice(0, MAX_SIMILAR_MOVIES);
+};
+
+/**
+ * Helper function: Check if user has rated the movie
+ * Returns rating value (1-5) if rated, otherwise returns undefined
+ */
+const getUserRating = (movieId: number, userRatings: Record<number, number>): number | undefined => {
+  return userRatings[movieId];
+};
+
+/**
+ * Helper function: Check if movie is in user's watchlist
+ * Returns boolean indicating watchlist status
+ */
+const isMovieInWatchlist = (movieId: number, watchlist: number[]): boolean => {
+  return watchlist.includes(movieId);
+};
+
+/**
+ * Helper function: Build cast and crew formatted data
+ * Returns object with director and cast information ready for display
+ */
+const formatCastAndCrew = (movie: Movie) => {
+  return {
+    director: movie.director,
+    cast: movie.cast.join(", ")
+  };
+};
+
+/**
+ * Helper function: Extract movie metadata stats
+ * Returns object with formatted rating, votes, year, and duration
+ */
+const getMovieStats = (movie: Movie) => {
+  return {
+    rating: movie.rating.toFixed(1),
+    votes: movie.votes.toLocaleString(),
+    year: movie.year,
+    duration: movie.duration
+  };
+};
+
 export function MovieDetails({
   movie,
   onBack,
@@ -22,17 +78,16 @@ export function MovieDetails({
   watchlist,
   userRatings
 }: MovieDetailsProps) {
-  const userRating = userRatings[movie.id];
-  const isInWatchlist = watchlist.includes(movie.id);
+  // Calculate user interactions with this movie
+  const userRating = getUserRating(movie.id, userRatings);
+  const isInWatchlist = isMovieInWatchlist(movie.id, watchlist);
 
-  // Find similar movies (same genre)
-  const similarMovies = mockMovies
-    .filter(
-      (m) =>
-        m.id !== movie.id &&
-        m.genre.some((g) => movie.genre.includes(g))
-    )
-    .slice(0, 6);
+  // Get similar movies based on genre matching
+  const similarMovies = findSimilarMovies(movie, mockMovies);
+
+  // Format display data
+  const stats = getMovieStats(movie);
+  const castCrew = formatCastAndCrew(movie);
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -79,17 +134,17 @@ export function MovieDetails({
                   <div className="flex items-center gap-2">
                     <Star className="w-5 h-5 fill-yellow-500 text-yellow-500" />
                     <span className="text-xl font-semibold text-white">
-                      {movie.rating.toFixed(1)}
+                      {stats.rating}
                     </span>
-                    <span className="text-zinc-400">({movie.votes.toLocaleString()} votes)</span>
+                    <span className="text-zinc-400">({stats.votes} votes)</span>
                   </div>
                   <div className="flex items-center gap-2 text-zinc-300">
                     <Calendar className="w-5 h-5" />
-                    <span>{movie.year}</span>
+                    <span>{stats.year}</span>
                   </div>
                   <div className="flex items-center gap-2 text-zinc-300">
                     <Clock className="w-5 h-5" />
-                    <span>{movie.duration} min</span>
+                    <span>{stats.duration} min</span>
                   </div>
                 </div>
 
@@ -182,14 +237,14 @@ export function MovieDetails({
                   <User className="w-5 h-5 text-purple-500 mt-1" />
                   <div>
                     <p className="text-sm text-zinc-400">Director</p>
-                    <p className="text-white font-medium">{movie.director}</p>
+                    <p className="text-white font-medium">{castCrew.director}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <User className="w-5 h-5 text-purple-500 mt-1" />
                   <div>
                     <p className="text-sm text-zinc-400">Cast</p>
-                    <p className="text-white font-medium">{movie.cast.join(", ")}</p>
+                    <p className="text-white font-medium">{castCrew.cast}</p>
                   </div>
                 </div>
               </div>
