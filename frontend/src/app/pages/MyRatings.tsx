@@ -11,6 +11,88 @@ interface MyRatingsProps {
   watchlist: number[];
 }
 
+/**
+ * Helper function: Extract movies that have been rated by user
+ * Returns filtered array of movies from mockMovies that exist in userRatings
+ */
+const getRatedMovies = (movies: Movie[], userRatings: Record<number, number>): Movie[] => {
+  return movies.filter((movie) => userRatings[movie.id] !== undefined);
+};
+
+/**
+ * Helper function: Filter rated movies by specific rating value
+ * If filterRating is 0, returns all movies; otherwise filters to exact match
+ */
+const filterMoviesByRating = (movies: Movie[], userRatings: Record<number, number>, filterRating: number): Movie[] => {
+  if (filterRating === 0) {
+    return movies;
+  }
+  return movies.filter((movie) => userRatings[movie.id] === filterRating);
+};
+
+/**
+ * Helper function: Sort movies by user's selected criteria
+ * Supports: "recent" (order added), "rating-high" (highest first), "rating-low" (lowest first)
+ */
+const sortRatedMovies = (
+  movies: Movie[],
+  userRatings: Record<number, number>,
+  sortBy: "recent" | "rating-high" | "rating-low"
+): Movie[] => {
+  const sorted = [...movies];
+  
+  switch (sortBy) {
+    case "rating-high":
+      return sorted.sort((a, b) => userRatings[b.id] - userRatings[a.id]);
+    case "rating-low":
+      return sorted.sort((a, b) => userRatings[a.id] - userRatings[b.id]);
+    case "recent":
+    default:
+      return sorted.sort(
+        (a, b) => Object.keys(userRatings).indexOf(String(b.id)) - 
+                   Object.keys(userRatings).indexOf(String(a.id))
+      );
+  }
+};
+
+/**
+ * Helper function: Calculate rating distribution histogram
+ * Returns array of objects with rating (1-5) and count of movies with that rating
+ * Used to display bar chart in statistics section
+ */
+const calculateRatingDistribution = (userRatings: Record<number, number>) => {
+  return [5, 4, 3, 2, 1].map((rating) => ({
+    rating,
+    count: Object.values(userRatings).filter((r) => r === rating).length
+  }));
+};
+
+/**
+ * Helper function: Calculate average rating across all rated movies
+ * Handles edge case when no movies are rated (returns 0)
+ */
+const calculateAverageRating = (movies: Movie[], userRatings: Record<number, number>): number => {
+  const count = movies.length;
+  if (count === 0) return 0;
+  
+  const sum = Object.values(userRatings).reduce((a, b) => a + b, 0);
+  return sum / count;
+};
+
+/**
+ * Helper function: Apply all filtering and sorting operations in sequence
+ * Returns final display list of movies ready for rendering
+ */
+const getFilteredAndSortedRatings = (
+  movies: Movie[],
+  userRatings: Record<number, number>,
+  filterRating: number,
+  sortBy: "recent" | "rating-high" | "rating-low"
+): Movie[] => {
+  const filtered = filterMoviesByRating(movies, userRatings, filterRating);
+  return sortRatedMovies(filtered, userRatings, sortBy);
+};
+
 export function MyRatings({
   userRatings,
   onMovieClick,
@@ -21,41 +103,16 @@ export function MyRatings({
   const [filterRating, setFilterRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<"recent" | "rating-high" | "rating-low">("recent");
 
-  const ratedMovies = mockMovies.filter((movie) => userRatings[movie.id] !== undefined);
+  // Get all movies that have user ratings
+  const ratedMovies = getRatedMovies(mockMovies, userRatings);
 
-  // Apply filters
-  let filteredMovies = [...ratedMovies];
+  // Apply filtering and sorting to get display list
+  const filteredMovies = getFilteredAndSortedRatings(ratedMovies, userRatings, filterRating, sortBy);
 
-  if (filterRating > 0) {
-    filteredMovies = filteredMovies.filter((movie) => userRatings[movie.id] === filterRating);
-  }
-
-  // Apply sorting
-  filteredMovies.sort((a, b) => {
-    switch (sortBy) {
-      case "rating-high":
-        return userRatings[b.id] - userRatings[a.id];
-      case "rating-low":
-        return userRatings[a.id] - userRatings[b.id];
-      case "recent":
-      default:
-        return Object.keys(userRatings).indexOf(String(b.id)) - 
-               Object.keys(userRatings).indexOf(String(a.id));
-    }
-  });
-
-  // Calculate statistics
+  // Calculate statistics for display
   const totalRatings = ratedMovies.length;
-  const averageRating =
-    totalRatings > 0
-      ? Object.values(userRatings).reduce((a, b) => a + b, 0) / totalRatings
-      : 0;
-
-  const ratingDistribution = [5, 4, 3, 2, 1].map((rating) => ({
-    rating,
-    count: Object.values(userRatings).filter((r) => r === rating).length
-  }));
-
+  const averageRating = calculateAverageRating(ratedMovies, userRatings);
+  const ratingDistribution = calculateRatingDistribution(userRatings);
   const maxCount = Math.max(...ratingDistribution.map((d) => d.count), 1);
 
   const clearAllRatings = () => {
