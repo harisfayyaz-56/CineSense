@@ -1,3 +1,35 @@
+/**
+ * MovieCard Component - Reusable Movie Display Card
+ * 
+ * Renders individual movie cards with poster image, title, rating, and interactive features.
+ * Wrapped with React.memo() to prevent unnecessary re-renders when parent component updates.
+ * This optimization is critical since Dashboard can render 24+ cards simultaneously.
+ * 
+ * Key Features:
+ * - Hover animations: scale up and gradient overlay reveal
+ * - Star rating system: clickable 5-star rating interface
+ * - Watchlist toggle: add/remove movies from user's watchlist
+ * - Image fallback: displays placeholder if poster fails to load
+ * - Genre badges: shows primary genres on card bottom
+ * 
+ * Event Handling:
+ * - Uses e.stopPropagation() on rating/watchlist buttons to prevent card click trigger
+ * - Allows independent interaction with buttons while maintaining card click functionality
+ * - Critical for preventing double navigation when user tries to add movie to watchlist
+ * 
+ * Props:
+ * - movie: Movie object containing all movie data (title, poster, rating, genres, etc)
+ * - onRate: Callback function (movieId, rating) triggered when user rates movie
+ * - onToggleWatchlist: Callback function (movieId) triggered for watchlist add/remove
+ * - isInWatchlist: Boolean indicating if movie is already in user's watchlist
+ * - userRating: Current user's rating for this movie (1-5), displays filled stars
+ * - onClick: Callback when card is clicked to view movie details
+ * 
+ * Performance Note:
+ * memo() wraps component to skip re-renders if props haven't changed.
+ * Essential optimization for rendering multiple cards in Dashboard/Search views.
+ */
+
 import { Star, Plus, Check } from "lucide-react";
 import { Movie } from "../data/mockMovies";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -20,6 +52,8 @@ export const MovieCard = memo(function MovieCard({
   userRating,
   onClick
 }: MovieCardProps) {
+  // Event handler for rating: uses stopPropagation to prevent parent click
+  // Allows user to rate without navigating to movie details page
   const handleRating = (rating: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (onRate) {

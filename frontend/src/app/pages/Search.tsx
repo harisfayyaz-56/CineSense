@@ -1,3 +1,44 @@
+/**
+ * Search and Filter Page Component
+ * 
+ * Advanced search interface with multi-filter capabilities and sorting options.
+ * Allows users to discover movies through text search and refined filtering.
+ * 
+ * Search & Filter Features:
+ * - Full-text search: filters movies by title (case-insensitive)
+ * - Genre filtering: select multiple genres with OR logic (matches any selected genre)
+ * - Year filtering: filter movies by release year
+ * - Rating filtering: minimum rating threshold filter
+ * - Sort options: by rating (descending), year (newest first), or title (A-Z)
+ * - Clear all filters: resets all filters and search to show full catalog
+ * 
+ * State Management:
+ * - searchQuery: text string for movie title search
+ * - selectedGenres: array of genre strings (can select multiple)
+ * - selectedYear: single year or null (mutually exclusive)
+ * - minRating: number 0-10 for minimum rating threshold
+ * - showFilters: boolean controlling filter panel visibility (mobile optimization)
+ * - sortBy: "rating" | "year" | "title" - changes result order
+ * 
+ * Filtering Algorithm (useMemo):
+ * - Filters are applied in sequence: search → genres → year → rating
+ * - Uses memoization to prevent recalculation on every render
+ * - Only recalculates when filter state changes, not on parent re-renders
+ * - Critical performance optimization for large movie catalogs
+ * 
+ * Sorting:
+ * - Rating: highest to lowest (8.5 before 7.2)
+ * - Year: newest to oldest (2024 before 2020)
+ * - Title: alphabetical A-Z order
+ * 
+ * Props and Callbacks:
+ * - onMovieClick: navigate to movie details page
+ * - onRate: save user's movie rating to state
+ * - onToggleWatchlist: add/remove movie from watchlist
+ * - watchlist: array of movie IDs in user's watchlist
+ * - userRatings: object mapping movieId to user's 1-5 rating
+ */
+
 import { useState, useMemo } from "react";
 import { Search as SearchIcon, Filter, X, SlidersHorizontal } from "lucide-react";
 import { Movie, mockMovies, genres, years } from "../data/mockMovies";
@@ -25,12 +66,16 @@ export function Search({
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<"rating" | "year" | "title">("rating");
 
+  // Genre toggle: adds/removes genre from filter array
+  // Supports multiple selections with OR logic (any selected genre matches)
   const toggleGenre = (genre: string) => {
     setSelectedGenres((prev) =>
       prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
     );
   };
 
+  // Reset all filters and search simultaneously
+  // Returns view to showing entire movie catalog
   const clearFilters = () => {
     setSelectedGenres([]);
     setSelectedYear(null);
@@ -38,6 +83,9 @@ export function Search({
     setSearchQuery("");
   };
 
+  // Memoized filtering and sorting: only recalculates when filters change
+  // Prevents expensive filter operations on every render
+  // Sequence of filters applied: text search → genres → release year → rating → sort
   const filteredMovies = useMemo(() => {
     let filtered = mockMovies;
 
