@@ -1,3 +1,4 @@
+// Login component handles user authentication with sign-up and sign-in modes
 import { useState } from "react";
 import { Film, Mail, Lock, Eye, EyeOff, AlertCircle, Loader } from "lucide-react";
 import { signUpUser, signInUser } from "../../config/authService";

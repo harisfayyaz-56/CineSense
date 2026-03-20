@@ -1,3 +1,35 @@
+/**
+ * Header Component
+ * 
+ * Navigation header with user profile menu that appears on every page.
+ * Sticky positioned to remain visible during page scrolling.
+ * 
+ * Features:
+ * - CineSense branding and logo with gradient styling
+ * - Main navigation items: Home, Search, Watchlist, Ratings, Feedback
+ * - User profile menu with logout option
+ * - Responsive design (full nav on desktop, icon-only on mobile)
+ * - Click-outside detection to close user menu
+ * - Active page highlighting for current navigation item
+ * 
+ * State Management:
+ * - showUserMenu: Boolean controlling visibility of profile dropdown
+ * - menuRef: Reference to user menu container for click-outside detection
+ * - Uses useEffect to attach/remove click listener for accessibility
+ * 
+ * Props:
+ * - currentPage: Current active page (used for nav highlighting)
+ * - onNavigate: Callback to change pages
+ * - userName: Currently logged-in user's display name
+ * - onLogout: Callback when user clicks logout button
+ * 
+ * User Menu Behavior:
+ * - Displays user's display name or "User" if not provided
+ * - Shows "Profile" and "Logout" options
+ * - Closes automatically when clicking outside the menu
+ * - Closes when user navigates to another page
+ */
+
 import { Film, Search, Home, User, LogOut, Heart, Star, MessageSquare } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
