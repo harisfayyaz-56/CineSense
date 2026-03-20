@@ -1,3 +1,30 @@
+/**
+ * Dashboard Component
+ * 
+ * Main landing page that displays personalized movie recommendations to authenticated users.
+ * The component uses memoization to optimize performance when rendering large movie lists.
+ * 
+ * Features:
+ * - Personalized recommendations based on movie ratings
+ * - Trending movies section showing most voted films
+ * - Recently added movies (newest first)
+ * - Top rated movies filtered by minimum rating (8.0+)
+ * - Movie card interactions: click to view details, rate, add to watchlist
+ * 
+ * State Management:
+ * - watchlist: Array of movie IDs added by user
+ * - userRatings: Object mapping movieId to user's rating (1-10)
+ * - All movie lists are memoized to prevent unnecessary re-renders
+ * 
+ * Props:
+ * - onMovieClick: Callback when user clicks a movie card
+ * - onRate: Callback when user rates a movie
+ * - onToggleWatchlist: Callback when user adds/removes from watchlist
+ * - watchlist: Current user's watchlist
+ * - userRatings: Current user's movie ratings
+ * - userName: Display user's name in greeting
+ */
+
 import { TrendingUp, Sparkles, Clock, Star } from "lucide-react";
 import { Movie, mockMovies } from "../data/mockMovies";
 import { MovieCard } from "../components/MovieCard";
@@ -19,7 +46,13 @@ export function Dashboard({
   watchlist,
   userRatings
 }: DashboardProps) {
-  // Simulate personalized recommendations (top rated movies) - memoized for performance
+  // Derived movie lists - each sorted and filtered by different criteria
+  // Using useMemo prevents recalculation on every render, improving performance
+  // Performance optimization is critical since mockMovies can contain hundreds of entries
+  
+  // Recommendations: Top 6 highest rated movies from the entire catalog
+  // Simulates an AI recommendation engine by showing critically acclaimed films
+  // Real implementation would use MovieLens collaborative filtering algorithm
   const recommendedMovies = useMemo(() => 
     [...mockMovies]
       .sort((a, b) => b.rating - a.rating)

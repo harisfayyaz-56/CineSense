@@ -1,3 +1,4 @@
+// Profile component displays and manages user profile with Firestore integration
 import { useEffect, useState } from "react";
 import { User, Mail, Calendar, Star, Film, Heart, Award, Settings, Edit, Loader } from "lucide-react";
 import { mockMovies } from "../data/mockMovies";

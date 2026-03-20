@@ -8,7 +8,7 @@ import {
 import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from './firebaseConfig';
 
-// Interface for user profile data
+// Defines the structure of user profile documents in Firestore
 export interface UserProfile {
   uid: string;
   email: string;
@@ -21,9 +21,7 @@ export interface UserProfile {
   role?: string;
 }
 
-/**
- * Sign up a new user with email and password, then save profile to Firestore
- */
+// Creates a new Firebase Auth user and saves their profile to Firestore
 export const signUpUser = async (
   email: string,
   password: string,
@@ -52,9 +50,7 @@ export const signUpUser = async (
   }
 };
 
-/**
- * Sign in user with email and password
- */
+// Authenticates user with email and password
 export const signInUser = async (email: string, password: string): Promise<User> => {
   try {
     const userCredential: UserCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -64,9 +60,7 @@ export const signInUser = async (email: string, password: string): Promise<User>
   }
 };
 
-/**
- * Get user profile from Firestore
- */
+// Retrieves user profile document from Firestore database
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
   try {
     const userDoc = await getDoc(doc(db, 'users', uid));
