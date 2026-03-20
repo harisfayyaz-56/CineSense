@@ -3,6 +3,7 @@
 A modern movie recommendation and rating application built with React, Firebase, and Node.js.
 
 ## 📋 Table of Contents
+- [Team Members](#team-members)
 - [Overview](#overview)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
@@ -14,6 +15,13 @@ A modern movie recommendation and rating application built with React, Firebase,
 - [Testing](#testing)
 - [Database Schema](#database-schema)
 - [API Endpoints](#api-endpoints)
+
+---
+
+## 👥 Team Members
+- Haris Fayyaz (Team Lead) - 23L-0767
+- Faiqa Waseem             - 23L-0633
+- Moeez Ijaz               - 23L-0750
 
 ---
 
@@ -91,46 +99,61 @@ The application uses Firebase for authentication and real-time database manageme
 
 ```
 CineSense/
-├── backend/                         # Python/FastAPI Backend
-│   ├── main.py                      # FastAPI application entry point
-│   ├── requirements.txt             # Python dependencies
-│   ├── config.py                    # Configuration settings
-│   ├── firebase_config.py           # Firebase configuration
-│   ├── serviceAccountKey.json       # Firebase credentials
-│   │
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── auth.py             # Authentication endpoints
-│   │   │   ├── movies.py           # Movie endpoints
-│   │   │   ├── ratings.py          # Rating endpoints
-│   │   │   ├── recommendations.py  # Recommendation system endpoints
-│   │   │   └── users.py            # User profile endpoints
-│   │   │
-│   │   ├── models/
-│   │   │   ├── recommendation.py   # ML recommendation model
-│   │   │   └── database.py         # Database models
-│   │   │
-│   │   └── utils/
-│   │       ├── firebase.py         # Firebase utilities
-│   │       └── helpers.py          # Helper functions
-│   │
-│   └── data/
-│       └── movielens/              # MovieLens dataset
-│
+├── backend/
+│   ├── requirements.txt
+│   ├── .gitignore
+│   └── serviceAccountKey.json
 ├── frontend/
 │   ├── src/
+│   │   ├── main.tsx
 │   │   ├── app/
 │   │   │   ├── App.tsx
-│   │   │   ├── components/         # Reusable components
-│   │   │   ├── pages/              # Page components
-│   │   │   ├── data/               # Mock data
-│   │   │   └── styles/             # Global styles
-│   │   └── main.tsx
-│   ├── package.json                # Frontend dependencies
-│   ├── vite.config.ts              # Vite configuration
-│   ├── tailwind.config.js          # Tailwind configuration
-│   └── index.html
-│
+│   │   │   ├── components/
+│   │   │   │   ├── Header.tsx
+│   │   │   │   ├── MovieCard.tsx
+│   │   │   │   ├── LoadingSkeleton.tsx
+│   │   │   │   ├── figma/
+│   │   │   │   │   └── ImageWithFallback.tsx
+│   │   │   │   └── ui/                    # shadcn/ui components
+│   │   │   ├── pages/
+│   │   │   │   ├── Login.tsx
+│   │   │   │   ├── Dashboard.tsx
+│   │   │   │   ├── Search.tsx
+│   │   │   │   ├── MovieDetails.tsx
+│   │   │   │   ├── Profile.tsx
+│   │   │   │   ├── Watchlist.tsx
+│   │   │   │   ├── MyRatings.tsx
+│   │   │   │   └── Feedback.tsx
+│   │   │   └── data/
+│   │   │       └── mockMovies.ts
+│   │   ├── config/
+│   │   │   ├── firebaseConfig.ts
+│   │   │   └── authService.ts
+│   │   ├── styles/
+│   │   │   ├── fonts.css
+│   │   │   ├── index.css
+│   │   │   ├── tailwind.css
+│   │   │   └── theme.css
+│   │   └── imports/
+│   │       └── movie-recommendation-system.md
+│   ├── guidelines/
+│   │   └── Guidelines.md
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── postcss.config.mjs
+│   ├── .env
+│   ├── .env.example
+│   ├── .gitignore
+│   ├── ATTRIBUTIONS.md
+│   └── README.md
+├── Docs/                                 
+│   ├── CINESENSE-SPRINT1.docx
+│   ├── PROJECT PLAN ITER 0.docx
+├── Firestore DB Table collection/         # Collection table ss                          
+├── prototype.epgz/                        # Design prototype
+├── package-lock.json
+└── .gitignore
 └── README.md                        # This file
 ```
 

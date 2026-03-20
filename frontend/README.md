@@ -1,17 +1,11 @@
-
-  # Design prototype pages
-
-  This is a code bundle for Design prototype pages. The original project is available at https://www.figma.com/design/NngYUdE3aGi8GjTXBy1f3j/Design-prototype-pages.
-
   ## Team Members
 
-  - Haris Fayyaz
-  - Faiqa Waseem
-  - Moeez Ijaz
+  - Haris Fayyaz (23L-0767)
+  - Faiqa Waseem (23L-0633)
+  - Moeez Ijaz (23L-0750)
 
   ## Running the code
 
   Run `npm i` to install the dependencies.
 
   Run `npm run dev` to start the development server.
-  
