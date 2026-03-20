@@ -11,6 +11,76 @@ interface WatchlistProps {
   userRatings: Record<number, number>;
 }
 
+/**
+ * Helper function: Calculate watchlist statistics including total runtime
+ * Returns object with total minutes, formatted hours and minutes
+ */
+const calculateWatchlistStats = (movies: Movie[]) => {
+  const totalMinutes = movies.reduce((sum, movie) => sum + movie.duration, 0);
+  return {
+    totalMinutes,
+    hours: Math.floor(totalMinutes / 60),
+    minutes: totalMinutes % 60
+  };
+};
+
+/**
+ * Helper function: Extract unique genres from watchlist movies
+ * Returns sorted array of genre strings
+ */
+const extractGenres = (movies: Movie[]): string[] => {
+  return Array.from(
+    new Set(movies.flatMap((movie) => movie.genre))
+  ).sort();
+};
+
+/**
+ * Helper function: Filter movies by selected genre
+ * Returns filtered array if genre is selected, otherwise returns all movies
+ */
+const filterByGenre = (movies: Movie[], selectedGenre: string): Movie[] => {
+  if (selectedGenre === "all") {
+    return movies;
+  }
+  return movies.filter((movie) => movie.genre.includes(selectedGenre));
+};
+
+/**
+ * Helper function: Sort movies by specified criteria
+ * Supports: "added" (order in watchlist), "rating" (highest first), "year" (newest first)
+ */
+const sortMovies = (
+  movies: Movie[],
+  sortBy: "added" | "rating" | "year",
+  watchlistOrder: number[]
+): Movie[] => {
+  const sorted = [...movies];
+  
+  switch (sortBy) {
+    case "rating":
+      return sorted.sort((a, b) => b.rating - a.rating);
+    case "year":
+      return sorted.sort((a, b) => b.year - a.year);
+    case "added":
+    default:
+      return sorted.sort((a, b) => watchlistOrder.indexOf(b.id) - watchlistOrder.indexOf(a.id));
+  }
+};
+
+/**
+ * Helper function: Apply all filters and sorting to watchlist movies
+ * Combines genre filtering and sorting in one operation
+ */
+const getFilteredAndSortedMovies = (
+  movies: Movie[],
+  selectedGenre: string,
+  sortBy: "added" | "rating" | "year",
+  watchlistOrder: number[]
+): Movie[] => {
+  const filtered = filterByGenre(movies, selectedGenre);
+  return sortMovies(filtered, sortBy, watchlistOrder);
+};
+
 export function Watchlist({
   watchlist,
   onMovieClick,
@@ -21,42 +91,27 @@ export function Watchlist({
   const [sortBy, setSortBy] = useState<"added" | "rating" | "year">("added");
   const [filterGenre, setFilterGenre] = useState<string>("all");
 
+  // Get movies that are in the watchlist
   const watchlistMovies = mockMovies.filter((movie) => watchlist.includes(movie.id));
 
-  // Get unique genres from watchlist
-  const genres = Array.from(
-    new Set(watchlistMovies.flatMap((movie) => movie.genre))
-  ).sort();
+  // Calculate statistics for display
+  const stats = calculateWatchlistStats(watchlistMovies);
 
-  // Apply filters and sorting
-  let filteredMovies = [...watchlistMovies];
+  // Get available genres from watchlist movies
+  const availableGenres = extractGenres(watchlistMovies);
 
-  if (filterGenre !== "all") {
-    filteredMovies = filteredMovies.filter((movie) =>
-      movie.genre.includes(filterGenre)
-    );
-  }
+  // Apply filters and sorting to get final display list
+  const filteredMovies = getFilteredAndSortedMovies(
+    watchlistMovies,
+    filterGenre,
+    sortBy,
+    watchlist
+  );
 
-  filteredMovies.sort((a, b) => {
-    switch (sortBy) {
-      case "rating":
-        return b.rating - a.rating;
-      case "year":
-        return b.year - a.year;
-      case "added":
-      default:
-        return watchlist.indexOf(b.id) - watchlist.indexOf(a.id);
-    }
-  });
-
+  // Remove all movies from watchlist at once
   const clearWatchlist = () => {
     watchlist.forEach((id) => onToggleWatchlist(id));
   };
-
-  // Calculate total runtime
-  const totalRuntime = watchlistMovies.reduce((sum, movie) => sum + movie.duration, 0);
-  const hours = Math.floor(totalRuntime / 60);
-  const minutes = totalRuntime % 60;
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -83,7 +138,7 @@ export function Watchlist({
             <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 rounded-lg border border-zinc-800">
               <Clock className="w-5 h-5 text-emerald-500" />
               <span className="text-white font-semibold">
-                {hours}h {minutes}m
+                {stats.hours}h {stats.minutes}m
               </span>
               <span className="text-zinc-400 text-sm">Total Runtime</span>
             </div>
@@ -110,14 +165,14 @@ export function Watchlist({
                 </div>
 
                 {/* Genre Filter */}
-                {genres.length > 0 && (
+                {availableGenres.length > 0 && (
                   <select
                     value={filterGenre}
                     onChange={(e) => setFilterGenre(e.target.value)}
                     className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                   >
                     <option value="all">All Genres</option>
-                    {genres.map((genre) => (
+                    {availableGenres.map((genre) => (
                       <option key={genre} value={genre}>
                         {genre}
                       </option>
