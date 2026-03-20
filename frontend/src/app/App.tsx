@@ -14,6 +14,85 @@ import { getCurrentUser, getUserProfile } from "../config/authService";
 
 type Page = "login" | "dashboard" | "search" | "details" | "profile" | "watchlist" | "ratings" | "feedback";
 
+// Valid pages that require authentication
+const VALID_AUTHENTICATED_PAGES: Page[] = ["dashboard", "search", "profile", "watchlist", "ratings", "feedback"];
+
+/**
+ * Helper function: Validate if page is a valid authenticated page
+ * Returns true if page can be navigated to, false otherwise
+ */
+const isValidPage = (page: string): page is Page => {
+  return VALID_AUTHENTICATED_PAGES.includes(page as Page);
+};
+
+/**
+ * Helper function: Perform user login and profile loading
+ * Fetches user profile from Firestore and updates app state
+ * Returns object with userName, userEmail, and success status
+ */
+const performLogin = async (email: string): Promise<{ userName: string; userEmail: string }> => {
+  const currentUser = getCurrentUser();
+  
+  if (!currentUser) {
+    return { userName: "User", userEmail: email };
+  }
+
+  try {
+    const profile = await getUserProfile(currentUser.uid);
+    return {
+      userName: profile?.displayName || "User",
+      userEmail: email
+    };
+  } catch (error) {
+    console.error("Error loading user profile:", error);
+    return {
+      userName: "User",
+      userEmail: email
+    };
+  }
+};
+
+/**
+ * Helper function: Reset all user state on logout
+ * Clears authentication, user data, watchlist, ratings
+ */
+const getLogoutState = () => {
+  return {
+    isAuthenticated: false,
+    userName: "",
+    userEmail: "",
+    currentPage: "login" as Page,
+    watchlist: [] as number[],
+    userRatings: {} as Record<number, number>
+  };
+};
+
+/**
+ * Helper function: Initialize authentication on app load
+ * Checks if user is already logged in and fetches their profile
+ * Returns object with loaded state or null if not authenticated
+ */
+const initializeAuthFromUser = async () => {
+  const currentUser = getCurrentUser();
+  
+  if (!currentUser) {
+    return null;
+  }
+
+  try {
+    const profile = await getUserProfile(currentUser.uid);
+    return {
+      isAuthenticated: true,
+      userName: profile?.displayName || "User",
+      userEmail: profile?.email || currentUser.email || "",
+      currentPage: "dashboard" as Page
+    };
+  } catch (error) {
+    console.error("Error loading user profile:", error);
+    return null;
+  }
+};
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -23,60 +102,51 @@ export default function App() {
   const [watchlist, setWatchlist] = useState<number[]>([]);
   const [userRatings, setUserRatings] = useState<Record<number, number>>({});
 
+  // Handle user login with profile fetching
   const handleLogin = async (email: string, password: string) => {
-    try {
-      // Get current user after login
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        // Fetch user profile from Firestore to get the actual display name
-        const profile = await getUserProfile(currentUser.uid);
-        
-        // Set authentication state with real profile data
-        setIsAuthenticated(true);
-        setUserName(profile?.displayName || "User");
-        setUserEmail(email);
-        setCurrentPage("dashboard");
-      }
-    } catch (error) {
-      console.error("Error loading user profile:", error);
-      setIsAuthenticated(true);
-      setUserName("User");
-      setUserEmail(email);
-      setCurrentPage("dashboard");
-    }
+    const loginData = await performLogin(email);
+    
+    setIsAuthenticated(true);
+    setUserName(loginData.userName);
+    setUserEmail(loginData.userEmail);
+    setCurrentPage("dashboard");
   };
 
+  // Handle user logout and state reset
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUserName("");
-    setCurrentPage("login");
-    setWatchlist([]);
-    setUserRatings({});
+    const logoutState = getLogoutState();
+    
+    setIsAuthenticated(logoutState.isAuthenticated);
+    setUserName(logoutState.userName);
+    setUserEmail(logoutState.userEmail);
+    setCurrentPage(logoutState.currentPage);
+    setWatchlist(logoutState.watchlist);
+    setUserRatings(logoutState.userRatings);
   };
 
+  // Handle page navigation with validation
   const handleNavigate = (page: string) => {
-    if (page === "dashboard" || page === "search" || page === "profile" || page === "watchlist" || page === "ratings" || page === "feedback") {
-      setCurrentPage(page as Page);
+    if (isValidPage(page)) {
+      setCurrentPage(page);
     }
   };
 
   // Check if user is already logged in on app load
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      // User is already logged in, fetch their profile
-      getUserProfile(currentUser.uid)
-        .then((profile) => {
-          setIsAuthenticated(true);
-          setUserName(profile?.displayName || "User");
-          setUserEmail(profile?.email || currentUser.email || "");
-          setCurrentPage("dashboard");
-        })
-        .catch((error) => {
-          console.error("Error loading user profile:", error);
-          setCurrentPage("login");
-        });
-    }
+    const loadAuthState = async () => {
+      const authState = await initializeAuthFromUser();
+      
+      if (authState) {
+        setIsAuthenticated(authState.isAuthenticated);
+        setUserName(authState.userName);
+        setUserEmail(authState.userEmail);
+        setCurrentPage(authState.currentPage);
+      } else {
+        setCurrentPage("login");
+      }
+    };
+
+    loadAuthState();
   }, []);
 
   const handleMovieClick = useCallback((movie: Movie) => {
