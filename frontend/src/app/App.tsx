@@ -11,7 +11,7 @@ import { Feedback } from "./pages/Feedback";
 import { Header } from "./components/Header";
 import { Movie } from "./data/mockMovies";
 import { Toaster } from "./components/ui/sonner";
-import { getCurrentUser, getUserProfile, isUserEmailVerified } from "../config/authService";
+import { getCurrentUser, getUserProfile, isUserEmailVerified, getUserMovieRatings, saveMovieRating } from "../config/authService";
 
 type Page = "login" | "email-verification" | "dashboard" | "search" | "details" | "profile" | "watchlist" | "ratings" | "feedback";
 
@@ -31,24 +31,28 @@ const isValidPage = (page: string): page is Page => {
  * Fetches user profile from Firestore and updates app state
  * Returns object with userName, userEmail, and success status
  */
-const performLogin = async (email: string): Promise<{ userName: string; userEmail: string }> => {
+const performLogin = async (email: string): Promise<{ userName: string; userEmail: string; ratings: Record<number, number> }> => {
   const currentUser = getCurrentUser();
   
   if (!currentUser) {
-    return { userName: "User", userEmail: email };
+    return { userName: "User", userEmail: email, ratings: {} };
   }
 
   try {
     const profile = await getUserProfile(currentUser.uid);
+    const ratings = await getUserMovieRatings(currentUser.uid);
+    
     return {
       userName: profile?.displayName || "User",
-      userEmail: email
+      userEmail: email,
+      ratings: ratings
     };
   } catch (error) {
     console.error("Error loading user profile:", error);
     return {
       userName: "User",
-      userEmail: email
+      userEmail: email,
+      ratings: {}
     };
   }
 };
@@ -71,7 +75,7 @@ const getLogoutState = () => {
 /**
  * Helper function: Initialize authentication on app load
  * Checks if user is already logged in and fetches their profile
- * Also checks if email is verified
+ * Also checks if email is verified and loads ratings
  * Returns object with loaded state or null if not authenticated
  */
 const initializeAuthFromUser = async () => {
@@ -83,6 +87,7 @@ const initializeAuthFromUser = async () => {
 
   try {
     const profile = await getUserProfile(currentUser.uid);
+    const ratings = await getUserMovieRatings(currentUser.uid);
     
     // Check if email is verified
     const emailVerified = currentUser.emailVerified;
@@ -92,7 +97,8 @@ const initializeAuthFromUser = async () => {
       userName: profile?.displayName || "User",
       userEmail: profile?.email || currentUser.email || "",
       currentPage: emailVerified ? "dashboard" as Page : "email-verification" as Page,
-      emailVerified: emailVerified
+      emailVerified: emailVerified,
+      ratings: ratings
     };
   } catch (error) {
     console.error("Error loading user profile:", error);
@@ -120,6 +126,7 @@ export default function App() {
     setIsAuthenticated(true);
     setUserName(loginData.userName);
     setUserEmail(loginData.userEmail);
+    setUserRatings(loginData.ratings);
     
     // Redirect to email verification or dashboard based on verification status
     setCurrentPage(emailVerified ? "dashboard" : "email-verification");
@@ -154,6 +161,7 @@ export default function App() {
         setUserName(authState.userName);
         setUserEmail(authState.userEmail);
         setCurrentPage(authState.currentPage);
+        setUserRatings(authState.ratings || {});
       } else {
         setCurrentPage("login");
       }
@@ -173,6 +181,10 @@ export default function App() {
   };
 
   const handleRate = useCallback((movieId: number, rating: number) => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return;
+
+    // Update local state
     setUserRatings((prev) => {
       if (rating === 0) {
         const newRatings = { ...prev };
@@ -183,6 +195,11 @@ export default function App() {
         ...prev,
         [movieId]: rating
       };
+    });
+
+    // Save to Firestore (async)
+    saveMovieRating(currentUser.uid, movieId, rating).catch((error) => {
+      console.error("Failed to save movie rating:", error);
     });
   }, []);
 

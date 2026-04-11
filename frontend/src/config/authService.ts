@@ -23,6 +23,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   emailVerified: boolean;
+  ratings?: Record<string, number>; // movieId -> rating
   createdAt: Timestamp;
   updatedAt: Timestamp;
   profilePicture?: string;
@@ -241,6 +242,57 @@ export const markEmailAsVerified = async (uid: string): Promise<void> => {
     await updateUserProfile(uid, {
       emailVerified: true
     });
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Save or update a movie rating for the user
+ */
+export const saveMovieRating = async (uid: string, movieId: number, rating: number): Promise<void> => {
+  try {
+    const userProfile = await getUserProfile(uid);
+    if (!userProfile) {
+      throw new Error("User profile not found");
+    }
+
+    const currentRatings = userProfile.ratings || {};
+    const movieIdStr = String(movieId);
+
+    if (rating === 0) {
+      // Remove rating if 0
+      delete currentRatings[movieIdStr];
+    } else {
+      // Save or update rating
+      currentRatings[movieIdStr] = rating;
+    }
+
+    await updateUserProfile(uid, {
+      ratings: currentRatings
+    });
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Get all movie ratings for a user
+ */
+export const getUserMovieRatings = async (uid: string): Promise<Record<number, number>> => {
+  try {
+    const userProfile = await getUserProfile(uid);
+    if (!userProfile || !userProfile.ratings) {
+      return {};
+    }
+
+    // Convert string keys back to numbers
+    const ratings: Record<number, number> = {};
+    Object.entries(userProfile.ratings).forEach(([movieId, rating]) => {
+      ratings[Number(movieId)] = rating;
+    });
+
+    return ratings;
   } catch (error: any) {
     throw new Error(error.message);
   }
