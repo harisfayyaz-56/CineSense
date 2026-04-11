@@ -8,7 +8,9 @@ interface MyRatingsProps {
   onMovieClick: (movie: Movie) => void;
   onRate: (movieId: number, rating: number) => void;
   onToggleWatchlist: (movieId: number) => void;
+  onTogglePersonalDashboard: (movieId: number) => void;
   watchlist: number[];
+  personalDashboard: number[];
 }
 
 /**
@@ -98,7 +100,9 @@ export function MyRatings({
   onMovieClick,
   onRate,
   onToggleWatchlist,
-  watchlist
+  onTogglePersonalDashboard,
+  watchlist,
+  personalDashboard
 }: MyRatingsProps) {
   const [filterRating, setFilterRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<"recent" | "rating-high" | "rating-low">("recent");
@@ -250,7 +254,9 @@ export function MyRatings({
                     onClick={() => onMovieClick(movie)}
                     onRate={onRate}
                     onToggleWatchlist={onToggleWatchlist}
+                    onTogglePersonalDashboard={onTogglePersonalDashboard}
                     isInWatchlist={watchlist.includes(movie.id)}
+                    isInPersonalDashboard={personalDashboard.includes(movie.id)}
                     userRating={userRatings[movie.id]}
                   />
                 ))}

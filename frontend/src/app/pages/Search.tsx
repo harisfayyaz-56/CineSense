@@ -48,7 +48,9 @@ interface SearchProps {
   onMovieClick: (movie: Movie) => void;
   onRate: (movieId: number, rating: number) => void;
   onToggleWatchlist: (movieId: number) => void;
+  onTogglePersonalDashboard: (movieId: number) => void;
   watchlist: number[];
+  personalDashboard: number[];
   userRatings: Record<number, number>;
 }
 
@@ -56,7 +58,9 @@ export function Search({
   onMovieClick,
   onRate,
   onToggleWatchlist,
+  onTogglePersonalDashboard,
   watchlist,
+  personalDashboard,
   userRatings
 }: SearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -292,7 +296,9 @@ export function Search({
                 onClick={() => onMovieClick(movie)}
                 onRate={onRate}
                 onToggleWatchlist={onToggleWatchlist}
+                onTogglePersonalDashboard={onTogglePersonalDashboard}
                 isInWatchlist={watchlist.includes(movie.id)}
+                isInPersonalDashboard={personalDashboard.includes(movie.id)}
                 userRating={userRatings[movie.id]}
               />
             ))}

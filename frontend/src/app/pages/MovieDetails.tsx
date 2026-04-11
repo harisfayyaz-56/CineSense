@@ -9,7 +9,9 @@ interface MovieDetailsProps {
   onMovieClick: (movie: Movie) => void;
   onRate: (movieId: number, rating: number) => void;
   onToggleWatchlist: (movieId: number) => void;
+  onTogglePersonalDashboard: (movieId: number) => void;
   watchlist: number[];
+  personalDashboard: number[];
   userRatings: Record<number, number>;
 }
 
@@ -75,7 +77,9 @@ export function MovieDetails({
   onMovieClick,
   onRate,
   onToggleWatchlist,
+  onTogglePersonalDashboard,
   watchlist,
+  personalDashboard,
   userRatings
 }: MovieDetailsProps) {
   // Calculate user interactions with this movie
@@ -292,7 +296,9 @@ export function MovieDetails({
                   onClick={() => onMovieClick(similarMovie)}
                   onRate={onRate}
                   onToggleWatchlist={onToggleWatchlist}
+                  onTogglePersonalDashboard={onTogglePersonalDashboard}
                   isInWatchlist={watchlist.includes(similarMovie.id)}
+                  isInPersonalDashboard={personalDashboard.includes(similarMovie.id)}
                   userRating={userRatings[similarMovie.id]}
                 />
               ))}

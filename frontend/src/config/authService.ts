@@ -24,6 +24,8 @@ export interface UserProfile {
   displayName: string;
   emailVerified: boolean;
   ratings?: Record<string, number>; // movieId -> rating
+  watchlist?: number[]; // array of movie IDs
+  personalDashboard?: number[]; // array of movie IDs
   createdAt: Timestamp;
   updatedAt: Timestamp;
   profilePicture?: string;
@@ -293,6 +295,62 @@ export const getUserMovieRatings = async (uid: string): Promise<Record<number, n
     });
 
     return ratings;
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Save or update user's watchlist
+ */
+export const saveUserWatchlist = async (uid: string, watchlist: number[]): Promise<void> => {
+  try {
+    await updateUserProfile(uid, {
+      watchlist: watchlist
+    });
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Get user's watchlist
+ */
+export const getUserWatchlist = async (uid: string): Promise<number[]> => {
+  try {
+    const userProfile = await getUserProfile(uid);
+    if (!userProfile || !userProfile.watchlist) {
+      return [];
+    }
+    return userProfile.watchlist;
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Save or update user's personal dashboard
+ */
+export const saveUserPersonalDashboard = async (uid: string, personalDashboard: number[]): Promise<void> => {
+  try {
+    await updateUserProfile(uid, {
+      personalDashboard: personalDashboard
+    });
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Get user's personal dashboard
+ */
+export const getUserPersonalDashboard = async (uid: string): Promise<number[]> => {
+  try {
+    const userProfile = await getUserProfile(uid);
+    if (!userProfile || !userProfile.personalDashboard) {
+      return [];
+    }
+    return userProfile.personalDashboard;
   } catch (error: any) {
     throw new Error(error.message);
   }

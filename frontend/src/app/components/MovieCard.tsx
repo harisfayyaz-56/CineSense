@@ -30,16 +30,24 @@
  * Essential optimization for rendering multiple cards in Dashboard/Search views.
  */
 
-import { Star, Plus, Check } from "lucide-react";
+import { Star, Plus, Check, BookmarkPlus, MoreVertical } from "lucide-react";
 import { Movie } from "../data/mockMovies";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { memo } from "react";
+import { memo, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 interface MovieCardProps {
   movie: Movie;
   onRate?: (movieId: number, rating: number) => void;
   onToggleWatchlist?: (movieId: number) => void;
+  onTogglePersonalDashboard?: (movieId: number) => void;
   isInWatchlist?: boolean;
+  isInPersonalDashboard?: boolean;
   userRating?: number;
   onClick?: () => void;
 }
@@ -48,10 +56,14 @@ export const MovieCard = memo(function MovieCard({
   movie,
   onRate,
   onToggleWatchlist,
+  onTogglePersonalDashboard,
   isInWatchlist = false,
+  isInPersonalDashboard = false,
   userRating,
   onClick
 }: MovieCardProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   // Event handler for rating: uses stopPropagation to prevent parent click
   // Allows user to rate without navigating to movie details page
   const handleRating = (rating: number, e: React.MouseEvent) => {
@@ -61,11 +73,18 @@ export const MovieCard = memo(function MovieCard({
     }
   };
 
-  const handleWatchlistToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleWatchlistClick = () => {
     if (onToggleWatchlist) {
       onToggleWatchlist(movie.id);
     }
+    setIsMenuOpen(false);
+  };
+
+  const handlePersonalDashboardClick = () => {
+    if (onTogglePersonalDashboard) {
+      onTogglePersonalDashboard(movie.id);
+    }
+    setIsMenuOpen(false);
   };
 
   return (
@@ -81,18 +100,30 @@ export const MovieCard = memo(function MovieCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         
-        {/* Watchlist Button */}
-        {onToggleWatchlist && (
-          <button
-            onClick={handleWatchlistToggle}
-            className="absolute top-2 right-2 p-2 bg-black/60 backdrop-blur-sm rounded-full hover:bg-black/80 transition-colors z-10"
-          >
-            {isInWatchlist ? (
-              <Check className="w-5 h-5 text-emerald-500" />
-            ) : (
-              <Plus className="w-5 h-5 text-white" />
-            )}
-          </button>
+        {/* Add Menu Button */}
+        {(onToggleWatchlist || onTogglePersonalDashboard) && (
+          <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="absolute top-2 right-2 p-2 bg-black/60 backdrop-blur-sm rounded-full hover:bg-black/80 transition-colors z-10"
+              >
+                <Plus className="w-5 h-5 text-white" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={handleWatchlistClick}>
+                <BookmarkPlus className="w-4 h-4 mr-2" />
+                <span>Add to Watch Later</span>
+                {isInWatchlist && <Check className="w-4 h-4 ml-auto text-emerald-500" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handlePersonalDashboardClick}>
+                <Star className="w-4 h-4 mr-2" />
+                <span>Add to Personal Dashboard</span>
+                {isInPersonalDashboard && <Check className="w-4 h-4 ml-auto text-emerald-500" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         
         {/* Hover Info */}

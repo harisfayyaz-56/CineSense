@@ -1,18 +1,21 @@
 /**
  * Dashboard Component
  * 
- * Main landing page that displays personalized movie recommendations to authenticated users.
+ * Main landing page that displays movie recommendations to authenticated users.
  * The component uses memoization to optimize performance when rendering large movie lists.
+ * Clean home page with essential movie discovery sections.
  * 
  * Features:
- * - Personalized recommendations based on movie ratings
+ * - Recommended movies based on ratings
  * - Trending movies section showing most voted films
  * - Recently added movies (newest first)
  * - Top rated movies filtered by minimum rating (8.0+)
  * - Movie card interactions: click to view details, rate, add to watchlist
+ * - Quick access to Personal Dashboard
  * 
  * State Management:
  * - watchlist: Array of movie IDs added by user
+ * - personalDashboard: Array of movie IDs added to personal dashboard
  * - userRatings: Object mapping movieId to user's rating (1-10)
  * - All movie lists are memoized to prevent unnecessary re-renders
  * 
@@ -20,7 +23,10 @@
  * - onMovieClick: Callback when user clicks a movie card
  * - onRate: Callback when user rates a movie
  * - onToggleWatchlist: Callback when user adds/removes from watchlist
+ * - onTogglePersonalDashboard: Callback when user adds/removes from personal dashboard
+ * - onNavigatePersonalDashboard: Callback to navigate to personal dashboard
  * - watchlist: Current user's watchlist
+ * - personalDashboard: Current user's personal dashboard
  * - userRatings: Current user's movie ratings
  * - userName: Display user's name in greeting
  */
@@ -34,7 +40,10 @@ interface DashboardProps {
   onMovieClick: (movie: Movie) => void;
   onRate: (movieId: number, rating: number) => void;
   onToggleWatchlist: (movieId: number) => void;
+  onTogglePersonalDashboard: (movieId: number) => void;
+  onNavigatePersonalDashboard: () => void;
   watchlist: number[];
+  personalDashboard: number[];
   userRatings: Record<number, number>;
   userName?: string;
 }
@@ -43,7 +52,10 @@ export function Dashboard({
   onMovieClick,
   onRate,
   onToggleWatchlist,
+  onTogglePersonalDashboard,
+  onNavigatePersonalDashboard,
   watchlist,
+  personalDashboard,
   userRatings
 }: DashboardProps) {
   // Derived movie lists - each sorted and filtered by different criteria
@@ -125,7 +137,9 @@ export function Dashboard({
                 onClick={() => onMovieClick(movie)}
                 onRate={onRate}
                 onToggleWatchlist={onToggleWatchlist}
+                onTogglePersonalDashboard={onTogglePersonalDashboard}
                 isInWatchlist={watchlist.includes(movie.id)}
+                isInPersonalDashboard={personalDashboard.includes(movie.id)}
                 userRating={userRatings[movie.id]}
               />
             ))}
@@ -146,7 +160,9 @@ export function Dashboard({
                 onClick={() => onMovieClick(movie)}
                 onRate={onRate}
                 onToggleWatchlist={onToggleWatchlist}
+                onTogglePersonalDashboard={onTogglePersonalDashboard}
                 isInWatchlist={watchlist.includes(movie.id)}
+                isInPersonalDashboard={personalDashboard.includes(movie.id)}
                 userRating={userRatings[movie.id]}
               />
             ))}
@@ -167,7 +183,9 @@ export function Dashboard({
                 onClick={() => onMovieClick(movie)}
                 onRate={onRate}
                 onToggleWatchlist={onToggleWatchlist}
+                onTogglePersonalDashboard={onTogglePersonalDashboard}
                 isInWatchlist={watchlist.includes(movie.id)}
+                isInPersonalDashboard={personalDashboard.includes(movie.id)}
                 userRating={userRatings[movie.id]}
               />
             ))}
@@ -188,12 +206,25 @@ export function Dashboard({
                 onClick={() => onMovieClick(movie)}
                 onRate={onRate}
                 onToggleWatchlist={onToggleWatchlist}
+                onTogglePersonalDashboard={onTogglePersonalDashboard}
                 isInWatchlist={watchlist.includes(movie.id)}
+                isInPersonalDashboard={personalDashboard.includes(movie.id)}
                 userRating={userRatings[movie.id]}
               />
             ))}
           </div>
         </section>
+
+        {/* Quick Access to Personal Dashboard */}
+        <div className="mb-12">
+          <button
+            onClick={onNavigatePersonalDashboard}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all hover:shadow-lg"
+          >
+            <span className="text-lg">✨ View Your Personal Dashboard</span>
+            <p className="text-sm text-purple-100 mt-1">See your curated collection and personalized recommendations</p>
+          </button>
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12">
