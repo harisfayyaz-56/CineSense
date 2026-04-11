@@ -5,9 +5,11 @@ import { useState } from "react";
 
 interface WatchlistProps {
   watchlist: number[];
+  personalDashboard: number[];
   onMovieClick: (movie: Movie) => void;
   onRate: (movieId: number, rating: number) => void;
   onToggleWatchlist: (movieId: number) => void;
+  onTogglePersonalDashboard: (movieId: number) => void;
   userRatings: Record<number, number>;
 }
 
@@ -83,9 +85,11 @@ const getFilteredAndSortedMovies = (
 
 export function Watchlist({
   watchlist,
+  personalDashboard,
   onMovieClick,
   onRate,
   onToggleWatchlist,
+  onTogglePersonalDashboard,
   userRatings
 }: WatchlistProps) {
   const [sortBy, setSortBy] = useState<"added" | "rating" | "year">("added");
@@ -201,7 +205,9 @@ export function Watchlist({
                     onClick={() => onMovieClick(movie)}
                     onRate={onRate}
                     onToggleWatchlist={onToggleWatchlist}
+                    onTogglePersonalDashboard={onTogglePersonalDashboard}
                     isInWatchlist={true}
+                    isInPersonalDashboard={personalDashboard.includes(movie.id)}
                     userRating={userRatings[movie.id]}
                   />
                 ))}
@@ -226,7 +232,7 @@ export function Watchlist({
                 </h3>
                 <p className="text-zinc-300 mb-4">
                   You have {watchlistMovies.length} movies waiting for you. That's about{" "}
-                  {hours}h {minutes}m of entertainment!
+                  {stats.hours}h {stats.minutes}m of entertainment!
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <button className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors">

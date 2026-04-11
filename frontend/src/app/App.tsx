@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Login } from "./pages/Login";
 import { EmailVerification } from "./pages/EmailVerification";
 import { Dashboard } from "./pages/Dashboard";
+import { PersonalDashboard } from "./pages/PersonalDashboard";
 import { Search } from "./pages/Search";
 import { MovieDetails } from "./pages/MovieDetails";
 import { Profile } from "./pages/Profile";
@@ -11,12 +12,12 @@ import { Feedback } from "./pages/Feedback";
 import { Header } from "./components/Header";
 import { Movie } from "./data/mockMovies";
 import { Toaster } from "./components/ui/sonner";
-import { getCurrentUser, getUserProfile, isUserEmailVerified, getUserMovieRatings, saveMovieRating } from "../config/authService";
+import { getCurrentUser, getUserProfile, isUserEmailVerified, getUserMovieRatings, saveMovieRating, getUserWatchlist, saveUserWatchlist, getUserPersonalDashboard, saveUserPersonalDashboard } from "../config/authService";
 
-type Page = "login" | "email-verification" | "dashboard" | "search" | "details" | "profile" | "watchlist" | "ratings" | "feedback";
+type Page = "login" | "email-verification" | "dashboard" | "personal-dashboard" | "search" | "details" | "profile" | "watchlist" | "ratings" | "feedback";
 
 // Valid pages that require authentication
-const VALID_AUTHENTICATED_PAGES: Page[] = ["email-verification", "dashboard", "search", "profile", "watchlist", "ratings", "feedback"];
+const VALID_AUTHENTICATED_PAGES: Page[] = ["email-verification", "dashboard", "personal-dashboard", "search", "profile", "watchlist", "ratings", "feedback"];
 
 /**
  * Helper function: Validate if page is a valid authenticated page
@@ -29,37 +30,43 @@ const isValidPage = (page: string): page is Page => {
 /**
  * Helper function: Perform user login and profile loading
  * Fetches user profile from Firestore and updates app state
- * Returns object with userName, userEmail, and success status
+ * Returns object with userName, userEmail, ratings, watchlist, and personalDashboard
  */
-const performLogin = async (email: string): Promise<{ userName: string; userEmail: string; ratings: Record<number, number> }> => {
+const performLogin = async (email: string): Promise<{ userName: string; userEmail: string; ratings: Record<number, number>; watchlist: number[]; personalDashboard: number[] }> => {
   const currentUser = getCurrentUser();
   
   if (!currentUser) {
-    return { userName: "User", userEmail: email, ratings: {} };
+    return { userName: "User", userEmail: email, ratings: {}, watchlist: [], personalDashboard: [] };
   }
 
   try {
     const profile = await getUserProfile(currentUser.uid);
     const ratings = await getUserMovieRatings(currentUser.uid);
+    const watchlist = await getUserWatchlist(currentUser.uid);
+    const personalDashboard = await getUserPersonalDashboard(currentUser.uid);
     
     return {
       userName: profile?.displayName || "User",
       userEmail: email,
-      ratings: ratings
+      ratings: ratings,
+      watchlist: watchlist,
+      personalDashboard: personalDashboard
     };
   } catch (error) {
     console.error("Error loading user profile:", error);
     return {
       userName: "User",
       userEmail: email,
-      ratings: {}
+      ratings: {},
+      watchlist: [],
+      personalDashboard: []
     };
   }
 };
 
 /**
  * Helper function: Reset all user state on logout
- * Clears authentication, user data, watchlist, ratings
+ * Clears authentication, user data, watchlist, personal dashboard, ratings
  */
 const getLogoutState = () => {
   return {
@@ -68,6 +75,7 @@ const getLogoutState = () => {
     userEmail: "",
     currentPage: "login" as Page,
     watchlist: [] as number[],
+    personalDashboard: [] as number[],
     userRatings: {} as Record<number, number>
   };
 };
@@ -75,7 +83,7 @@ const getLogoutState = () => {
 /**
  * Helper function: Initialize authentication on app load
  * Checks if user is already logged in and fetches their profile
- * Also checks if email is verified and loads ratings
+ * Also checks if email is verified and loads ratings, watchlist, personalDashboard
  * Returns object with loaded state or null if not authenticated
  */
 const initializeAuthFromUser = async () => {
@@ -88,6 +96,8 @@ const initializeAuthFromUser = async () => {
   try {
     const profile = await getUserProfile(currentUser.uid);
     const ratings = await getUserMovieRatings(currentUser.uid);
+    const watchlist = await getUserWatchlist(currentUser.uid);
+    const personalDashboard = await getUserPersonalDashboard(currentUser.uid);
     
     // Check if email is verified
     const emailVerified = currentUser.emailVerified;
@@ -98,7 +108,9 @@ const initializeAuthFromUser = async () => {
       userEmail: profile?.email || currentUser.email || "",
       currentPage: emailVerified ? "dashboard" as Page : "email-verification" as Page,
       emailVerified: emailVerified,
-      ratings: ratings
+      ratings: ratings,
+      watchlist: watchlist,
+      personalDashboard: personalDashboard
     };
   } catch (error) {
     console.error("Error loading user profile:", error);
@@ -113,6 +125,7 @@ export default function App() {
   const [userEmail, setUserEmail] = useState("");
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [watchlist, setWatchlist] = useState<number[]>([]);
+  const [personalDashboard, setPersonalDashboard] = useState<number[]>([]);
   const [userRatings, setUserRatings] = useState<Record<number, number>>({});
 
   // Handle user login with profile fetching
@@ -127,6 +140,8 @@ export default function App() {
     setUserName(loginData.userName);
     setUserEmail(loginData.userEmail);
     setUserRatings(loginData.ratings);
+    setWatchlist(loginData.watchlist);
+    setPersonalDashboard(loginData.personalDashboard);
     
     // Redirect to email verification or dashboard based on verification status
     setCurrentPage(emailVerified ? "dashboard" : "email-verification");
@@ -141,6 +156,7 @@ export default function App() {
     setUserEmail(logoutState.userEmail);
     setCurrentPage(logoutState.currentPage);
     setWatchlist(logoutState.watchlist);
+    setPersonalDashboard(logoutState.personalDashboard);
     setUserRatings(logoutState.userRatings);
   };
 
@@ -162,6 +178,8 @@ export default function App() {
         setUserEmail(authState.userEmail);
         setCurrentPage(authState.currentPage);
         setUserRatings(authState.ratings || {});
+        setWatchlist(authState.watchlist || []);
+        setPersonalDashboard(authState.personalDashboard || []);
       } else {
         setCurrentPage("login");
       }
@@ -204,11 +222,49 @@ export default function App() {
   }, []);
 
   const handleToggleWatchlist = useCallback((movieId: number) => {
-    setWatchlist((prev) =>
-      prev.includes(movieId)
+    const currentUser = getCurrentUser();
+    if (!currentUser) return;
+
+    // Update local state
+    setWatchlist((prev) => {
+      const newWatchlist = prev.includes(movieId)
         ? prev.filter((id) => id !== movieId)
-        : [...prev, movieId]
-    );
+        : [...prev, movieId];
+      
+      // Save to Firestore (async)
+      saveUserWatchlist(currentUser.uid, newWatchlist).catch((error) => {
+        console.error("Failed to save watchlist:", error);
+      });
+      
+      return newWatchlist;
+    });
+  }, []);
+
+  const handleTogglePersonalDashboard = useCallback((movieId: number) => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return;
+
+    // Update local state
+    setPersonalDashboard((prev) => {
+      const newPersonalDashboard = prev.includes(movieId)
+        ? prev.filter((id) => id !== movieId)
+        : [...prev, movieId];
+      
+      // Save to Firestore (async)
+      saveUserPersonalDashboard(currentUser.uid, newPersonalDashboard).catch((error) => {
+        console.error("Failed to save personal dashboard:", error);
+      });
+      
+      return newPersonalDashboard;
+    });
+  }, []);
+
+  const handleNavigatePersonalDashboard = useCallback(() => {
+    setCurrentPage("personal-dashboard");
+  }, []);
+
+  const handleBackFromPersonalDashboard = useCallback(() => {
+    setCurrentPage("dashboard");
   }, []);
 
   if (!isAuthenticated) {
@@ -240,7 +296,10 @@ export default function App() {
           onMovieClick={handleMovieClick}
           onRate={handleRate}
           onToggleWatchlist={handleToggleWatchlist}
+          onTogglePersonalDashboard={handleTogglePersonalDashboard}
+          onNavigatePersonalDashboard={handleNavigatePersonalDashboard}
           watchlist={watchlist}
+          personalDashboard={personalDashboard}
           userRatings={userRatings}
           userName={userName}
         />
@@ -251,7 +310,22 @@ export default function App() {
           onMovieClick={handleMovieClick}
           onRate={handleRate}
           onToggleWatchlist={handleToggleWatchlist}
+          onTogglePersonalDashboard={handleTogglePersonalDashboard}
           watchlist={watchlist}
+          personalDashboard={personalDashboard}
+          userRatings={userRatings}
+        />
+      )}
+
+      {currentPage === "personal-dashboard" && (
+        <PersonalDashboard
+          onMovieClick={handleMovieClick}
+          onRate={handleRate}
+          onToggleWatchlist={handleToggleWatchlist}
+          onTogglePersonalDashboard={handleTogglePersonalDashboard}
+          onBack={handleBackFromPersonalDashboard}
+          watchlist={watchlist}
+          personalDashboard={personalDashboard}
           userRatings={userRatings}
         />
       )}
@@ -263,7 +337,9 @@ export default function App() {
           onMovieClick={handleMovieClick}
           onRate={handleRate}
           onToggleWatchlist={handleToggleWatchlist}
+          onTogglePersonalDashboard={handleTogglePersonalDashboard}
           watchlist={watchlist}
+          personalDashboard={personalDashboard}
           userRatings={userRatings}
         />
       )}
@@ -273,6 +349,7 @@ export default function App() {
           userName={userName}
           userEmail={userEmail}
           watchlist={watchlist}
+          personalDashboard={personalDashboard}
           userRatings={userRatings}
         />
       )}
@@ -280,9 +357,11 @@ export default function App() {
       {currentPage === "watchlist" && (
         <Watchlist
           watchlist={watchlist}
+          personalDashboard={personalDashboard}
           onMovieClick={handleMovieClick}
           onRate={handleRate}
           onToggleWatchlist={handleToggleWatchlist}
+          onTogglePersonalDashboard={handleTogglePersonalDashboard}
           userRatings={userRatings}
         />
       )}
@@ -293,7 +372,9 @@ export default function App() {
           onMovieClick={handleMovieClick}
           onRate={handleRate}
           onToggleWatchlist={handleToggleWatchlist}
+          onTogglePersonalDashboard={handleTogglePersonalDashboard}
           watchlist={watchlist}
+          personalDashboard={personalDashboard}
         />
       )}
 

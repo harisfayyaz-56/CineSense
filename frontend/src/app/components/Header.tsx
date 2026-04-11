@@ -30,7 +30,7 @@
  * - Closes when user navigates to another page
  */
 
-import { Film, Search, Home, User, LogOut, Heart, Star, MessageSquare } from "lucide-react";
+import { Film, Search, Home, User, LogOut, Heart, Star, MessageSquare, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 interface HeaderProps {
@@ -57,6 +57,7 @@ export function Header({ currentPage, onNavigate, userName, onLogout }: HeaderPr
 
   const navItems = [
     { id: "dashboard", label: "Home", icon: Home },
+    { id: "personal-dashboard", label: "My Dashboard", icon: Sparkles },
     { id: "search", label: "Search", icon: Search },
     { id: "watchlist", label: "Watchlist", icon: Heart },
     { id: "ratings", label: "My Ratings", icon: Star },

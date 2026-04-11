@@ -15,8 +15,7 @@ import {
 interface ProfileProps {
   userName?: string;
   userEmail?: string;
-  watchlist?: number[];
-  userRatings?: Record<number, number>;
+  watchlist?: number[];  personalDashboard: number[];  userRatings?: Record<number, number>;
 }
 
 export function Profile({ userName: defaultName, userEmail: defaultEmail, watchlist: defaultWatchlist = [], userRatings: defaultRatings = {} }: ProfileProps) {
