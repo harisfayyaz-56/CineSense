@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Login } from "./pages/Login";
+import { EmailVerification } from "./pages/EmailVerification";
 import { Dashboard } from "./pages/Dashboard";
 import { Search } from "./pages/Search";
 import { MovieDetails } from "./pages/MovieDetails";
@@ -10,12 +11,12 @@ import { Feedback } from "./pages/Feedback";
 import { Header } from "./components/Header";
 import { Movie } from "./data/mockMovies";
 import { Toaster } from "./components/ui/sonner";
-import { getCurrentUser, getUserProfile } from "../config/authService";
+import { getCurrentUser, getUserProfile, isUserEmailVerified } from "../config/authService";
 
-type Page = "login" | "dashboard" | "search" | "details" | "profile" | "watchlist" | "ratings" | "feedback";
+type Page = "login" | "email-verification" | "dashboard" | "search" | "details" | "profile" | "watchlist" | "ratings" | "feedback";
 
 // Valid pages that require authentication
-const VALID_AUTHENTICATED_PAGES: Page[] = ["dashboard", "search", "profile", "watchlist", "ratings", "feedback"];
+const VALID_AUTHENTICATED_PAGES: Page[] = ["email-verification", "dashboard", "search", "profile", "watchlist", "ratings", "feedback"];
 
 /**
  * Helper function: Validate if page is a valid authenticated page
@@ -70,6 +71,7 @@ const getLogoutState = () => {
 /**
  * Helper function: Initialize authentication on app load
  * Checks if user is already logged in and fetches their profile
+ * Also checks if email is verified
  * Returns object with loaded state or null if not authenticated
  */
 const initializeAuthFromUser = async () => {
@@ -81,11 +83,16 @@ const initializeAuthFromUser = async () => {
 
   try {
     const profile = await getUserProfile(currentUser.uid);
+    
+    // Check if email is verified
+    const emailVerified = currentUser.emailVerified;
+    
     return {
       isAuthenticated: true,
       userName: profile?.displayName || "User",
       userEmail: profile?.email || currentUser.email || "",
-      currentPage: "dashboard" as Page
+      currentPage: emailVerified ? "dashboard" as Page : "email-verification" as Page,
+      emailVerified: emailVerified
     };
   } catch (error) {
     console.error("Error loading user profile:", error);
@@ -106,10 +113,16 @@ export default function App() {
   const handleLogin = async (email: string, password: string) => {
     const loginData = await performLogin(email);
     
+    // Check if email is verified
+    const currentUser = getCurrentUser();
+    const emailVerified = currentUser?.emailVerified || false;
+    
     setIsAuthenticated(true);
     setUserName(loginData.userName);
     setUserEmail(loginData.userEmail);
-    setCurrentPage("dashboard");
+    
+    // Redirect to email verification or dashboard based on verification status
+    setCurrentPage(emailVerified ? "dashboard" : "email-verification");
   };
 
   // Handle user logout and state reset
@@ -183,6 +196,15 @@ export default function App() {
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
+  }
+
+  if (currentPage === "email-verification") {
+    return (
+      <EmailVerification 
+        onVerificationComplete={() => setCurrentPage("dashboard")}
+        onBack={handleLogout}
+      />
+    );
   }
 
   return (

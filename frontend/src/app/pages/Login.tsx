@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Film, Mail, Lock, Eye, EyeOff, AlertCircle, Loader } from "lucide-react";
 import { signUpUser, signInUser } from "../../config/authService";
+import { ForgotPasswordModal } from "../components/ForgotPasswordModal";
 
 interface LoginProps {
   onLogin: (email: string, password: string) => void;
@@ -17,6 +18,7 @@ export function Login({ onLogin }: LoginProps) {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +49,8 @@ export function Login({ onLogin }: LoginProps) {
         }
 
         await signUpUser(email, password, name);
+        // After signup, redirect to email verification
+        onLogin(email, password);
       } else {
         // Sign in with Firebase
         if (!email || !password) {
@@ -54,11 +58,19 @@ export function Login({ onLogin }: LoginProps) {
           setLoading(false);
           return;
         }
-        await signInUser(email, password);
+        
+        const user = await signInUser(email, password);
+        
+        // Check if email is verified - must reload to get latest status
+        if (!user.emailVerified) {
+          setError("Please verify your email address before signing in. A verification link was sent to your email.");
+          setLoading(false);
+          return;
+        }
+        
+        // Call parent callback for successful login
+        onLogin(email, password);
       }
-      
-      // Call parent callback for successful login
-      onLogin(email, password);
     } catch (err: any) {
       setError(err.message || "Authentication failed");
     } finally {
@@ -215,6 +227,7 @@ export function Login({ onLogin }: LoginProps) {
                 </label>
                 <button
                   type="button"
+                  onClick={() => setShowForgotPasswordModal(true)}
                   className="text-purple-400 hover:text-purple-300 transition-colors"
                 >
                   Forgot password?
@@ -262,6 +275,13 @@ export function Login({ onLogin }: LoginProps) {
         <p className="text-center text-zinc-500 text-xs mt-6">
           By continuing, you agree to CineSense's Terms of Service and Privacy Policy
         </p>
+
+        {/* Forgot Password Modal */}
+        <ForgotPasswordModal
+          isOpen={showForgotPasswordModal}
+          onClose={() => setShowForgotPasswordModal(false)}
+          prefilledEmail={email}
+        />
       </div>
     </div>
   );

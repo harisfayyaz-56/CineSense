@@ -1,9 +1,16 @@
 // Profile component displays and manages user profile with Firestore integration
 import { useEffect, useState } from "react";
-import { User, Mail, Calendar, Star, Film, Heart, Award, Settings, Edit, Loader } from "lucide-react";
+import { User, Mail, Calendar, Star, Film, Heart, Award, Settings, Edit, Loader, Lock } from "lucide-react";
 import { mockMovies } from "../data/mockMovies";
 import { getUserProfile, updateUserProfile, getCurrentUser } from "../../config/authService";
 import { UserProfile } from "../../config/authService";
+import { ResetPasswordModal } from "../components/ResetPasswordModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 
 interface ProfileProps {
   userName?: string;
@@ -18,6 +25,7 @@ export function Profile({ userName: defaultName, userEmail: defaultEmail, watchl
   const [error, setError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
 
   // Use real data from Firestore if available, otherwise fall back to props
   const userName = userProfile?.displayName || defaultName || "User";
@@ -169,13 +177,32 @@ export function Profile({ userName: defaultName, userEmail: defaultEmail, watchl
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors"
-                >
-                  <Settings className="w-5 h-5" />
-                  <span className="hidden md:inline">Edit Profile</span>
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors"
+                    >
+                      <Settings className="w-5 h-5" />
+                      <span className="hidden md:inline">Edit Profile</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-zinc-800 border border-zinc-700">
+                    <DropdownMenuItem 
+                      onClick={() => setIsEditing(true)}
+                      className="text-white hover:bg-zinc-700 cursor-pointer flex items-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit Name
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setShowResetPasswordModal(true)}
+                      className="text-white hover:bg-zinc-700 cursor-pointer flex items-center gap-2"
+                    >
+                      <Lock className="w-4 h-4" />
+                      Reset Password
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Quick Stats */}
@@ -403,6 +430,12 @@ export function Profile({ userName: defaultName, userEmail: defaultEmail, watchl
             </section>
           </div>
         </div>
+
+        {/* Reset Password Modal */}
+        <ResetPasswordModal
+          isOpen={showResetPasswordModal}
+          onClose={() => setShowResetPasswordModal(false)}
+        />
       </div>
     </div>
   );
