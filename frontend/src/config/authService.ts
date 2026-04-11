@@ -3,7 +3,16 @@ import {
   signInWithEmailAndPassword,
   signOut,
   User,
-  UserCredential
+  UserCredential,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  updatePassword,
+  sendPasswordResetEmail,
+  confirmPasswordReset,
+  checkActionCode,
+  verifyPasswordResetCode,
+  sendEmailVerification,
+  reload
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from './firebaseConfig';
@@ -13,6 +22,7 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
+  emailVerified: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   profilePicture?: string;
@@ -32,11 +42,15 @@ export const signUpUser = async (
     const userCredential: UserCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Create user profile in Firestore
+    // Send email verification
+    await sendEmailVerification(user);
+
+    // Create user profile in Firestore with emailVerified: false
     const userProfile: UserProfile = {
       uid: user.uid,
       email,
       displayName,
+      emailVerified: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       role: 'user'
@@ -103,4 +117,131 @@ export const signOutUser = async (): Promise<void> => {
  */
 export const getCurrentUser = (): User | null => {
   return auth.currentUser;
+};
+
+/**
+ * Send password reset email to user
+ */
+export const sendPasswordReset = async (email: string): Promise<void> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Verify password reset code and get email
+ */
+export const verifyResetCode = async (code: string): Promise<string> => {
+  try {
+    const email = await verifyPasswordResetCode(auth, code);
+    return email;
+  } catch (error: any) {
+    throw new Error("Invalid or expired reset code");
+  }
+};
+
+/**
+ * Confirm password reset with code and new password
+ */
+export const confirmPasswordResetWithCode = async (code: string, newPassword: string): Promise<void> => {
+  try {
+    await confirmPasswordReset(auth, code, newPassword);
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Verify old password by re-authenticating
+ */
+export const verifyOldPassword = async (email: string, password: string): Promise<boolean> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error("No user logged in");
+    }
+
+    const credential = EmailAuthProvider.credential(email, password);
+    await reauthenticateWithCredential(currentUser, credential);
+    return true;
+  } catch (error: any) {
+    throw new Error("Invalid password");
+  }
+};
+
+/**
+ * Update password for currently logged in user
+ */
+export const changePassword = async (newPassword: string): Promise<void> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error("No user logged in");
+    }
+
+    await updatePassword(currentUser, newPassword);
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Send verification email to current user
+ */
+export const resendVerificationEmail = async (): Promise<void> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      throw new Error("No user logged in");
+    }
+
+    await sendEmailVerification(currentUser);
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Check if current user's email is verified
+ */
+export const isUserEmailVerified = async (): Promise<boolean> => {
+  try {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return false;
+    }
+
+    // Reload user to get latest verification status
+    await reload(currentUser);
+    return currentUser.emailVerified;
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Get user's email verification status from Firestore
+ */
+export const getUserEmailVerificationStatus = async (uid: string): Promise<boolean> => {
+  try {
+    const profile = await getUserProfile(uid);
+    return profile?.emailVerified || false;
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Mark user's email as verified in Firestore
+ */
+export const markEmailAsVerified = async (uid: string): Promise<void> => {
+  try {
+    await updateUserProfile(uid, {
+      emailVerified: true
+    });
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
 };
