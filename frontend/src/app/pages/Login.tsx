@@ -1,6 +1,6 @@
 // Login component handles user authentication with sign-up and sign-in modes
-import { useState } from "react";
-import { Film, Mail, Lock, Eye, EyeOff, AlertCircle, Loader } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Film, Mail, Lock, Eye, EyeOff, AlertCircle, Loader, Trash2 } from "lucide-react";
 import { signUpUser, signInUser } from "../../config/authService";
 import { ForgotPasswordModal } from "../components/ForgotPasswordModal";
 
@@ -19,6 +19,16 @@ export function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Load saved email on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("rememberMeEmail");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +76,13 @@ export function Login({ onLogin }: LoginProps) {
           setError("Please verify your email address before signing in. A verification link was sent to your email.");
           setLoading(false);
           return;
+        }
+        
+        // Save email to localStorage if remember me is checked
+        if (rememberMe) {
+          localStorage.setItem("rememberMeEmail", email);
+        } else {
+          localStorage.removeItem("rememberMeEmail");
         }
         
         // Call parent callback for successful login
@@ -217,21 +234,40 @@ export function Login({ onLogin }: LoginProps) {
             )}
 
             {!isSignUp && (
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-zinc-400 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-purple-600 focus:ring-2 focus:ring-purple-600"
-                  />
-                  Remember me
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPasswordModal(true)}
-                  className="text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  Forgot password?
-                </button>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-zinc-400 cursor-pointer hover:text-zinc-300 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-purple-600 focus:ring-2 focus:ring-purple-600 cursor-pointer"
+                    />
+                    Remember me
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPasswordModal(true)}
+                    className="text-purple-400 hover:text-purple-300 transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                
+                {rememberMe && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem("rememberMeEmail");
+                      setRememberMe(false);
+                      setEmail("");
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-300 hover:text-zinc-200 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Forget this email
+                  </button>
+                )}
               </div>
             )}
 
@@ -256,6 +292,7 @@ export function Login({ onLogin }: LoginProps) {
                   setEmail("");
                   setPassword("");
                   setConfirmPassword("");
+                  setRememberMe(false);
                 }}
                 className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
               >
