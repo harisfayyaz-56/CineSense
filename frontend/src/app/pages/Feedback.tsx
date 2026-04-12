@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageSquare, Send, Star, CheckCircle, Film, Bug, Lightbulb, Heart } from "lucide-react";
 import { toast } from "sonner";
+import { saveFeedback, getUserFeedback, FeedbackSubmission as FirestoreFeedback } from "../../config/authService";
+import { Timestamp } from 'firebase/firestore';
 
 interface FeedbackProps {
   userName: string;
   userEmail: string;
+  uid: string;
 }
 
 type FeedbackType = "bug" | "feature" | "movie" | "general";
@@ -18,7 +21,9 @@ interface FeedbackSubmission {
   date: string;
 }
 
-export function Feedback({ userName, userEmail }: FeedbackProps) {
+const BACKEND_URL = "http://localhost:8000";
+
+export function Feedback({ userName, userEmail, uid }: FeedbackProps) {
   const [feedbackType, setFeedbackType] = useState<FeedbackType>("general");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -26,6 +31,7 @@ export function Feedback({ userName, userEmail }: FeedbackProps) {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submissions, setSubmissions] = useState<FeedbackSubmission[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const feedbackTypes = [
     {
@@ -58,29 +64,149 @@ export function Feedback({ userName, userEmail }: FeedbackProps) {
     }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newSubmission: FeedbackSubmission = {
-      id: Date.now(),
-      type: feedbackType,
-      subject,
-      message,
-      rating: feedbackType === "movie" ? rating : undefined,
-      date: new Date().toLocaleDateString()
+  // Load feedback from Firestore on component mount
+  useEffect(() => {
+    const loadFeedback = async () => {
+      try {
+        const userFeedback = await getUserFeedback(uid);
+        // Convert Firestore feedback to local format
+        const formattedFeedback: FeedbackSubmission[] = userFeedback.map(item => ({
+          id: Date.parse(item.date),
+          type: item.type,
+          subject: item.subject,
+          message: item.message,
+          rating: item.rating,
+          date: item.date
+        }));
+        setSubmissions(formattedFeedback);
+      } catch (error) {
+        console.error("Failed to load feedback:", error);
+      }
     };
 
-    setSubmissions([newSubmission, ...submissions]);
-    setSubmitted(true);
-    toast.success("Feedback submitted successfully!");
+    loadFeedback();
+  }, [uid]);
 
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setSubmitted(false);
-      setSubject("");
-      setMessage("");
-      setRating(0);
-    }, 3000);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    if (!subject.trim()) {
+      toast.error("Please enter a subject");
+      return;
+    }
+    if (!message.trim()) {
+      toast.error("Please enter a message");
+      return;
+    }
+    if (feedbackType === "movie" && rating === 0) {
+      toast.error("Please select a rating for movie feedback");
+      return;
+    }
+    
+    setIsLoading(true);
+
+    try {
+      const currentDate = new Date().toLocaleDateString();
+      
+      // Create feedback object for local state
+      const newSubmission: FeedbackSubmission = {
+        id: Date.now(),
+        type: feedbackType,
+        subject,
+        message,
+        date: currentDate
+      };
+      
+      // Only add rating if it's for movie feedback and has a value
+      if (feedbackType === "movie" && rating > 0) {
+        newSubmission.rating = rating;
+      }
+
+      // Create Firestore feedback object
+      const firestoreFeedback: FirestoreFeedback = {
+        id: String(Date.now()),
+        type: feedbackType,
+        subject,
+        message,
+        date: currentDate,
+        timestamp: Timestamp.now()
+      };
+      
+      // Only add rating if it's for movie feedback and has a value
+      if (feedbackType === "movie" && rating > 0) {
+        firestoreFeedback.rating = rating;
+      }
+
+      console.log("Saving feedback to Firestore:", firestoreFeedback);
+      
+      // Save to Firestore
+      await saveFeedback(uid, firestoreFeedback);
+      console.log("Feedback saved to Firestore successfully");
+
+      // Send email notification to admin
+      try {
+        console.log("Sending email with data:", {
+          uid,
+          userName,
+          userEmail,
+          feedbackType,
+          subject,
+          message,
+          rating: feedbackType === "movie" && rating > 0 ? rating : null
+        });
+        
+        const response = await fetch(`${BACKEND_URL}/api/feedback/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            uid,
+            userName,
+            userEmail,
+            feedbackType,
+            subject,
+            message,
+            rating: feedbackType === "movie" && rating > 0 ? rating : null
+          })
+        });
+
+        console.log("Email API response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Email notification failed:", errorText);
+          toast.warning("Feedback saved but email notification may have failed");
+        } else {
+          const data = await response.json();
+          console.log("Email sent successfully:", data);
+          toast.success("Feedback submitted successfully! Email sent to admin.");
+        }
+      } catch (emailError) {
+        console.error("Email API error:", emailError);
+        toast.warning("Feedback saved locally (email notification unavailable)");
+      }
+
+      // Update local state
+      setSubmissions([newSubmission, ...submissions]);
+      setSubmitted(true);
+
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setSubmitted(false);
+        setSubject("");
+        setMessage("");
+        setRating(0);
+      }, 3000);
+    } catch (error: any) {
+      console.error("Feedback submission error:", error);
+      const errorMessage = error?.message || String(error);
+      console.error("Detailed error:", errorMessage);
+      toast.error(`Failed to submit feedback: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -207,10 +333,12 @@ export function Feedback({ userName, userEmail }: FeedbackProps) {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={submitted}
+                  disabled={submitted || isLoading}
                   className={`w-full py-3 rounded-lg font-semibold transition-all ${
                     submitted
                       ? "bg-emerald-600 text-white"
+                      : isLoading
+                      ? "bg-zinc-600 text-white cursor-not-allowed opacity-75"
                       : "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 transform hover:scale-[1.02] active:scale-[0.98]"
                   }`}
                 >
@@ -218,6 +346,11 @@ export function Feedback({ userName, userEmail }: FeedbackProps) {
                     <span className="flex items-center justify-center gap-2">
                       <CheckCircle className="w-5 h-5" />
                       Feedback Submitted!
+                    </span>
+                  ) : isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Submitting...
                     </span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
