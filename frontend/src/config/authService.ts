@@ -17,6 +17,17 @@ import {
 import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from './firebaseConfig';
 
+// Defines feedback submission structure
+export interface FeedbackSubmission {
+  id: string;
+  type: 'bug' | 'feature' | 'movie' | 'general';
+  subject: string;
+  message: string;
+  rating?: number;
+  date: string;
+  timestamp: Timestamp;
+}
+
 // Defines the structure of user profile documents in Firestore
 export interface UserProfile {
   uid: string;
@@ -26,6 +37,7 @@ export interface UserProfile {
   ratings?: Record<string, number>; // movieId -> rating
   watchlist?: number[]; // array of movie IDs
   personalDashboard?: number[]; // array of movie IDs
+  feedback?: FeedbackSubmission[]; // array of feedback submissions
   createdAt: Timestamp;
   updatedAt: Timestamp;
   profilePicture?: string;
@@ -351,6 +363,42 @@ export const getUserPersonalDashboard = async (uid: string): Promise<number[]> =
       return [];
     }
     return userProfile.personalDashboard;
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Save feedback submission to Firestore
+ */
+export const saveFeedback = async (uid: string, feedback: FeedbackSubmission): Promise<void> => {
+  try {
+    const userProfile = await getUserProfile(uid);
+    if (!userProfile) {
+      throw new Error("User profile not found");
+    }
+
+    const currentFeedback = userProfile.feedback || [];
+    currentFeedback.push(feedback);
+
+    await updateUserProfile(uid, {
+      feedback: currentFeedback
+    });
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Get all feedback submissions for a user
+ */
+export const getUserFeedback = async (uid: string): Promise<FeedbackSubmission[]> => {
+  try {
+    const userProfile = await getUserProfile(uid);
+    if (!userProfile || !userProfile.feedback) {
+      return [];
+    }
+    return userProfile.feedback;
   } catch (error: any) {
     throw new Error(error.message);
   }

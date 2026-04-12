@@ -121,6 +121,7 @@ const initializeAuthFromUser = async () => {
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [uid, setUid] = useState("");
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
@@ -137,6 +138,7 @@ export default function App() {
     const emailVerified = currentUser?.emailVerified || false;
     
     setIsAuthenticated(true);
+    setUid(currentUser?.uid || "");
     setUserName(loginData.userName);
     setUserEmail(loginData.userEmail);
     setUserRatings(loginData.ratings);
@@ -152,6 +154,7 @@ export default function App() {
     const logoutState = getLogoutState();
     
     setIsAuthenticated(logoutState.isAuthenticated);
+    setUid("");
     setUserName(logoutState.userName);
     setUserEmail(logoutState.userEmail);
     setCurrentPage(logoutState.currentPage);
@@ -171,9 +174,11 @@ export default function App() {
   useEffect(() => {
     const loadAuthState = async () => {
       const authState = await initializeAuthFromUser();
+      const currentUser = getCurrentUser();
       
       if (authState) {
         setIsAuthenticated(authState.isAuthenticated);
+        setUid(currentUser?.uid || "");
         setUserName(authState.userName);
         setUserEmail(authState.userEmail);
         setCurrentPage(authState.currentPage);
@@ -380,6 +385,7 @@ export default function App() {
 
       {currentPage === "feedback" && (
         <Feedback
+          uid={uid}
           userName={userName}
           userEmail={userEmail}
         />
