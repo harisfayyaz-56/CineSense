@@ -1,0 +1,11 @@
+{
+  "dataset": "ml-latest-small",
+  "processed_at": "2026-04-20T02:08:19.395204",
+  "total_movies": 9742,
+  "total_ratings": 100836,
+  "unique_users": 610,
+  "date_range": {
+    "from": "1996-03-29T18:36:55",
+    "to": "2018-09-24T14:27:30"
+  }
+}

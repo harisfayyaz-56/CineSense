@@ -39,10 +39,13 @@
  * - userRatings: object mapping movieId to user's 1-5 rating
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search as SearchIcon, Filter, X, SlidersHorizontal } from "lucide-react";
 import { Movie, mockMovies, genres, years } from "../data/mockMovies";
 import { MovieCard } from "../components/MovieCard";
+import { MovieGridSkeleton } from "../components/LoadingSkeleton";
+import { db } from "../../config/firebaseConfig";
+import { collection, getDocs, query, limit } from "firebase/firestore";
 
 interface SearchProps {
   onMovieClick: (movie: Movie) => void;
@@ -63,12 +66,65 @@ export function Search({
   personalDashboard,
   userRatings
 }: SearchProps) {
+  const [movies, setMovies] = useState<Movie[]>(mockMovies);
+  const [allMovies, setAllMovies] = useState<Movie[]>([]);
+  const [displayedMovies, setDisplayedMovies] = useState<Movie[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [minRating, setMinRating] = useState<number>(0);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<"rating" | "year" | "title">("rating");
+  const [moviesPerPage] = useState(100);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch movies from Firestore
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        setIsLoading(true);
+        const moviesCollection = collection(db, "movies");
+        const moviesSnapshot = await getDocs(moviesCollection);
+        
+        const firestoreMovies = moviesSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          // Generate a consistent color-based image using title hash
+          const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8', 'F7DC6F', 'BB8FCE', '85C1E2'];
+          const hashCode = data.title?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) || 0;
+          const colorIndex = hashCode % colors.length;
+          const bgColor = colors[colorIndex];
+          
+          // Transform Firestore data to Movie interface
+          return {
+            id: data.movieId || doc.id,
+            title: data.title || "",
+            year: data.year || 0,
+            genre: Array.isArray(data.genres) ? data.genres : (data.genres?.split("|") || []),
+            rating: data.avgRating || 0,
+            votes: data.ratingCount || 0,
+            duration: 120,
+            director: "Unknown",
+            cast: [],
+            overview: data.title || "",
+            poster: `https://via.placeholder.com/300x450/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title?.substring(0, 20) || 'Movie')}`,
+            backdrop: `https://via.placeholder.com/1200x600/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
+          } as Movie;
+        });
+
+        if (firestoreMovies.length > 0) {
+          setAllMovies(firestoreMovies);
+          setCurrentPage(0);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error fetching movies from Firestore:", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchMovies();
+  }, []);
 
   // Genre toggle: adds/removes genre from filter array
   // Supports multiple selections with OR logic (any selected genre matches)
@@ -91,7 +147,7 @@ export function Search({
   // Prevents expensive filter operations on every render
   // Sequence of filters applied: text search → genres → release year → rating → sort
   const filteredMovies = useMemo(() => {
-    let filtered = mockMovies;
+    let filtered = allMovies;
 
     // Search by title
     if (searchQuery) {
@@ -132,7 +188,21 @@ export function Search({
     });
 
     return filtered;
-  }, [searchQuery, selectedGenres, selectedYear, minRating, sortBy]);
+  }, [allMovies, searchQuery, selectedGenres, selectedYear, minRating, sortBy]);
+
+  // Pagination: slice filtered movies to show only current page
+  useEffect(() => {
+    const startIdx = 0;
+    const endIdx = (currentPage + 1) * moviesPerPage;
+    setDisplayedMovies(filteredMovies.slice(startIdx, endIdx));
+  }, [filteredMovies, currentPage, moviesPerPage]);
+
+  // Check if there are more movies to load
+  const hasMoreMovies = filteredMovies.length > displayedMovies.length;
+
+  const loadMoreMovies = () => {
+    setCurrentPage((prev) => prev + 1);
+  };
 
   const activeFiltersCount =
     selectedGenres.length +
@@ -287,23 +357,38 @@ export function Search({
           </p>
         </div>
 
-        {filteredMovies.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {filteredMovies.map((movie) => (
-              <MovieCard
-                key={movie.id}
-                movie={movie}
-                onClick={() => onMovieClick(movie)}
-                onRate={onRate}
-                onToggleWatchlist={onToggleWatchlist}
-                onTogglePersonalDashboard={onTogglePersonalDashboard}
-                isInWatchlist={watchlist.includes(movie.id)}
-                isInPersonalDashboard={personalDashboard.includes(movie.id)}
-                userRating={userRatings[movie.id]}
-              />
-            ))}
-          </div>
-        ) : (
+        {isLoading ? (
+          <MovieGridSkeleton count={100} />
+        ) : filteredMovies.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+              {displayedMovies.map((movie) => (
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onClick={() => onMovieClick(movie)}
+                  onRate={onRate}
+                  onToggleWatchlist={onToggleWatchlist}
+                  onTogglePersonalDashboard={onTogglePersonalDashboard}
+                  isInWatchlist={watchlist.includes(movie.id)}
+                  isInPersonalDashboard={personalDashboard.includes(movie.id)}
+                  userRating={userRatings[movie.id]}
+                />
+              ))}
+            </div>
+
+            {hasMoreMovies && (
+              <div className="flex justify-center mt-12">
+                <button
+                  onClick={loadMoreMovies}
+                  className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Load More ({displayedMovies.length} / {filteredMovies.length})
+                </button>
+              </div>
+            )}
+          </>
+        ) : !isLoading ? (
           <div className="text-center py-20">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-zinc-900 rounded-full mb-4">
               <SearchIcon className="w-10 h-10 text-zinc-600" />
@@ -321,7 +406,7 @@ export function Search({
               </button>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

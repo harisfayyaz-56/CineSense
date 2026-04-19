@@ -19,6 +19,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 import json
 from tqdm import tqdm
+import ast
 
 # Configure logging
 logging.basicConfig(
@@ -134,13 +135,13 @@ class FirestoreLoader:
                 'movieId': int(row['movieId']),
                 'title': str(row['title']),
                 'year': int(row['year']) if pd.notna(row['year']) else 0,
-                'genres': json.loads(row['genres']) if isinstance(row['genres'], str) else list(row['genres'].split('|') if pd.notna(row['genres']) else []),
+                'genres': ast.literal_eval(row['genres']) if isinstance(row['genres'], str) else list(row['genres'].split('|') if pd.notna(row['genres']) else []),
                 'imdbId': str(row['imdbId']) if pd.notna(row['imdbId']) else '',
                 'tmdbId': int(row['tmdbId']) if pd.notna(row['tmdbId']) else 0,
                 'avgRating': float(row['avgRating']) if pd.notna(row['avgRating']) else 0.0,
                 'ratingCount': int(row['ratingCount']) if pd.notna(row['ratingCount']) else 0,
                 'popularity': float(row['popularity']) if pd.notna(row['popularity']) else 0.0,
-                'tags': json.loads(row['tags']) if isinstance(row['tags'], str) else (list(row['tags']) if pd.notna(row['tags']) else []),
+                'tags': ast.literal_eval(row['tags']) if isinstance(row['tags'], str) else (list(row['tags']) if pd.notna(row['tags']) else []),
                 'tagGenome': {},  # Will be populated separately if needed
                 'createdAt': datetime.now(),
                 'lastUpdated': datetime.now()

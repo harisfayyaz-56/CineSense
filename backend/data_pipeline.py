@@ -294,12 +294,21 @@ class MovieLensDataPipeline:
             'unique_users': 'uniqueUsers'
         })
         
-        # Merge with tags
+        # Merge with tags - ensure movieId column types match
+        tags_by_movie['movieId'] = tags_by_movie['movieId'].astype(int)
+        df['movieId'] = df['movieId'].astype(int)
         df = df.merge(tags_by_movie, on='movieId', how='left')
-        df['tags'] = df['tags'].fillna('').apply(lambda x: x if isinstance(x, list) else [])
+        
+        # Handle tags column - create if it doesn't exist, fill NaN with empty lists
+        if 'tags' not in df.columns:
+            df['tags'] = [[] for _ in range(len(df))]
+        else:
+            df['tags'] = df['tags'].fillna('').apply(lambda x: x if isinstance(x, list) else [])
         
         # Calculate popularity score (0-100 based on rating count)
-        if df['ratingCount'].max() > 0:
+        max_rating_count = df['ratingCount'].max()
+        if hasattr(max_rating_count, 'iloc'): max_rating_count = max_rating_count.iloc[0]
+        if max_rating_count > 0:
             df['popularity'] = ((df['ratingCount'] / df['ratingCount'].max()) * 100).round(1)
         else:
             df['popularity'] = 0

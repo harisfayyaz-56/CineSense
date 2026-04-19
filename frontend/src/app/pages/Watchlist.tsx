@@ -1,7 +1,9 @@
 import { Heart, Trash2, Play, Calendar, Clock, Filter } from "lucide-react";
-import { Movie, mockMovies } from "../data/mockMovies";
+import { Movie } from "../data/mockMovies";
 import { MovieCard } from "../components/MovieCard";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { db } from "../../config/firebaseConfig";
+import { collection, getDocs } from "firebase/firestore";
 
 interface WatchlistProps {
   watchlist: number[];
@@ -94,9 +96,51 @@ export function Watchlist({
 }: WatchlistProps) {
   const [sortBy, setSortBy] = useState<"added" | "rating" | "year">("added");
   const [filterGenre, setFilterGenre] = useState<string>("all");
+  const [allMovies, setAllMovies] = useState<Movie[]>([]);
+
+  // Fetch all movies from Firestore
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        const moviesCollection = collection(db, "movies");
+        const moviesSnapshot = await getDocs(moviesCollection);
+        
+        const firestoreMovies = moviesSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8', 'F7DC6F', 'BB8FCE', '85C1E2'];
+          const hashCode = data.title?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) || 0;
+          const colorIndex = hashCode % colors.length;
+          const bgColor = colors[colorIndex];
+          
+          return {
+            id: data.movieId || doc.id,
+            title: data.title || "",
+            year: data.year || 0,
+            genre: Array.isArray(data.genres) ? data.genres : (data.genres?.split("|") || []),
+            rating: data.avgRating || 0,
+            votes: data.ratingCount || 0,
+            duration: 120,
+            director: "Unknown",
+            cast: [],
+            overview: "",
+            poster: `https://via.placeholder.com/300x450/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title?.substring(0, 20) || 'Movie')}`,
+            backdrop: `https://via.placeholder.com/1200x600/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
+          } as Movie;
+        });
+
+        if (firestoreMovies.length > 0) {
+          setAllMovies(firestoreMovies);
+        }
+      } catch (error) {
+        console.error("Error fetching movies:", error);
+      }
+    };
+
+    fetchMovies();
+  }, []);
 
   // Get movies that are in the watchlist
-  const watchlistMovies = mockMovies.filter((movie) => watchlist.includes(movie.id));
+  const watchlistMovies = allMovies.filter((movie) => watchlist.includes(movie.id));
 
   // Calculate statistics for display
   const stats = calculateWatchlistStats(watchlistMovies);
