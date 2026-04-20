@@ -66,24 +66,24 @@ export function Header({ currentPage, onNavigate, userName, onLogout }: HeaderPr
 
   return (
     <header className="bg-zinc-950 border-b border-zinc-800 sticky top-0 z-50 backdrop-blur-md bg-zinc-950/95">
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
+      <div className="w-full px-6 py-4">
+        <div className="flex items-center justify-between gap-8">
+          {/* Logo - Larger */}
           <button
             onClick={() => onNavigate("dashboard")}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-shrink-0"
           >
-            <div className="bg-gradient-to-br from-purple-600 to-pink-600 p-2 rounded-lg">
-              <Film className="w-6 h-6 text-white" />
+            <div className="bg-gradient-to-br from-purple-600 to-pink-600 p-2.5 rounded-lg">
+              <Film className="w-7 h-7 text-white" />
             </div>
-            <div className="hidden sm:block">
-              <h1 className="text-xl font-bold text-white">CineSense</h1>
-              <p className="text-xs text-zinc-400">Intelligent Recommendations</p>
+            <div>
+              <h1 className="text-2xl font-bold text-white">CineSense</h1>
+              <p className="text-xs text-zinc-400 leading-tight">Intelligent Recommendations</p>
             </div>
           </button>
 
-          {/* Navigation */}
-          <nav className="flex items-center gap-2 md:gap-6">
+          {/* Navigation - Centered with smaller font */}
+          <nav className="flex items-center gap-3 flex-1 justify-center flex-wrap">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.id;
@@ -91,60 +91,60 @@ export function Header({ currentPage, onNavigate, userName, onLogout }: HeaderPr
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`flex items-center gap-2 px-2 md:px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors text-base font-medium ${
                     isActive
                       ? "bg-purple-600 text-white"
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="hidden lg:inline">{item.label}</span>
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden md:inline">{item.label}</span>
                 </button>
               );
             })}
+          </nav>
 
-            {/* User Menu */}
-            <div className="flex items-center gap-3 pl-6 border-l border-zinc-800 relative" ref={menuRef}>
-              <div className="hidden md:block text-right">
-                <p className="text-sm text-white">{userName || "User"}</p>
-                <p className="text-xs text-zinc-400">Member</p>
-              </div>
-              <button 
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="p-2 bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors"
-              >
-                <User className="w-5 h-5 text-white" />
-              </button>
+          {/* User Menu */}
+          <div className="flex items-center gap-4 flex-shrink-0" ref={menuRef}>
+            <div className="hidden md:block text-right border-r border-zinc-800 pr-4">
+              <p className="text-sm font-medium text-white">{userName || "User"}</p>
+              <p className="text-xs text-zinc-500">Member</p>
+            </div>
+            <button 
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="p-2.5 bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors"
+            >
+              <User className="w-6 h-6 text-white" />
+            </button>
 
-              {/* Dropdown Menu */}
-              {showUserMenu && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50">
+            {/* Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute top-full right-6 mt-2 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden z-50">
+                <button
+                  onClick={() => {
+                    onNavigate("profile");
+                    setShowUserMenu(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-zinc-800 transition-colors text-sm"
+                >
+                  <User className="w-5 h-5" />
+                  <span>My Profile</span>
+                </button>
+                {onLogout && (
                   <button
                     onClick={() => {
-                      onNavigate("profile");
+                      onLogout();
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-zinc-800 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-600/10 transition-colors border-t border-zinc-800 text-sm"
                   >
-                    <User className="w-5 h-5" />
-                    <span>My Profile</span>
+                    <LogOut className="w-5 h-5" />
+                    <span>Logout</span>
                   </button>
-                  {onLogout && (
-                    <button
-                      onClick={() => {
-                        onLogout();
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-600/10 transition-colors border-t border-zinc-800"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      <span>Logout</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </nav>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
