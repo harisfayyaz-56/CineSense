@@ -59,13 +59,13 @@ class RecommendationsListResponse(BaseModel):
     
     Example:
     {
-        "userId": 1,
+        "userId": "user_abc123",
         "recommendations": [...],
         "timestamp": "2026-04-20T12:30:45",
         "algorithm": "hybrid"
     }
     """
-    userId: int
+    userId: str  # Supports both Firebase UIDs (strings) and numeric IDs
     recommendations: List[RecommendationResponse]
     timestamp: str
     algorithm: str = "hybrid"
@@ -111,7 +111,7 @@ class SimilarMovieResponse(BaseModel):
 
 @router.get("/user/{user_id}", response_model=RecommendationsListResponse)
 async def get_user_recommendations(
-    user_id: int,
+    user_id: str,
     n: int = Query(10, ge=1, le=50),
     algorithm: str = Query("hybrid", regex="^(hybrid|user_user|item_item|svd)$")
 ):
@@ -125,9 +125,10 @@ async def get_user_recommendations(
     
     Parameters:
     -----------
-    user_id : int (path)
+    user_id : str (path)
         The user ID to generate recommendations for
-        Example: 123
+        Can be numeric (MovieLens: 1-610) or Firebase UID (string)
+        Examples: "123" or "user_abc123xyz"
     
     n : int (query, default=10)
         Number of recommendations to return
@@ -471,6 +472,76 @@ async def record_rating_feedback(feedback: RatingFeedback):
         
     except Exception as e:
         logger.error(f"❌ Error recording feedback: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+@router.post("/sync-firestore")
+async def sync_firebase_ratings():
+    """
+    SYNC FIREBASE RATINGS TO ENGINE
+    ===============================
+    
+    Endpoint: POST /api/recommendations/sync-firestore
+    
+    What: Manually trigger a sync of Firebase user ratings to the recommendation engine
+    
+    Purpose: 
+    - Update engine with new Firebase user ratings
+    - Make recommendations available for new users
+    - Refresh recommendations based on latest ratings
+    
+    Response:
+    {
+        "success": true,
+        "new_users": 3,
+        "total_ratings": 100856,
+        "message": "Successfully synced 3 new Firebase users",
+        "timestamp": "2026-04-20T12:30:45"
+    }
+    
+    Use Cases:
+    ----------
+    1. Backend admin: Manually update recommendations
+        POST /api/recommendations/sync-firestore
+    
+    2. Frontend: After user rates movies (optional, background sync runs automatically)
+        POST /api/recommendations/sync-firestore
+    
+    3. Monitoring: Verify sync is working
+        result = await fetch('/api/recommendations/sync-firestore', {method: 'POST'})
+        if (result.new_users > 0) { console.log('Sync successful') }
+    
+    Note:
+    -----
+    - Background sync runs automatically every 5 minutes
+    - Manual calls are useful for immediate updates
+    - Safe to call multiple times (no duplicates)
+    """
+    try:
+        if recommendation_engine is None:
+            raise HTTPException(status_code=500, detail="Recommendation engine not initialized")
+        
+        # Import here to avoid circular dependency
+        from firestore_sync import sync_firestore_ratings
+        
+        logger.info("🔄 Manual sync triggered via API")
+        result = sync_firestore_ratings(recommendation_engine)
+        
+        if result.get('success'):
+            return {
+                "success": True,
+                "new_users": result.get('new_users', 0),
+                "total_ratings": result.get('total_ratings', 0),
+                "message": f"Successfully synced {result.get('new_users', 0)} new Firebase users",
+                "timestamp": result.get('timestamp')
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', 'Unknown error'))
+    
+    except Exception as e:
+        logger.error(f"❌ Sync error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

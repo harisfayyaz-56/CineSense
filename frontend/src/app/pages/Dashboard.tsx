@@ -38,6 +38,7 @@ import { MovieGridSkeleton } from "../components/LoadingSkeleton";
 import { useMemo, useState, useEffect } from "react";
 import { db } from "../../config/firebaseConfig";
 import { collection, query, getDocs, limit, orderBy } from "firebase/firestore";
+import { getCurrentUser } from "../../config/authService";
 
 interface DashboardProps {
   onMovieClick: (movie: Movie) => void;
@@ -63,6 +64,9 @@ export function Dashboard({
 }: DashboardProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
 
   // Fetch movies from Firestore
   useEffect(() => {
@@ -119,19 +123,80 @@ export function Dashboard({
     fetchMovies();
   }, []);
 
+  // Fetch personalized recommendations from backend
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      try {
+        setIsLoadingRecommendations(true);
+        setRecommendationError(null);
+
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+          console.log("No user logged in, showing popular movies");
+          setIsLoadingRecommendations(false);
+          return;
+        }
+
+        console.log("Fetching personalized recommendations for user:", currentUser.uid);
+        
+        // Call backend recommendation API
+        const response = await fetch(
+          `http://localhost:8000/api/recommendations/user/${currentUser.uid}?n=6`,
+          { method: 'GET' }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch recommendations: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Recommendations response:", data);
+
+        if (data.recommendations && Array.isArray(data.recommendations)) {
+          // Convert API recommendations to Movie objects
+          const recommendedMoviesList = data.recommendations
+            .map((rec: any) => {
+              const foundMovie = movies.find(m => m.id === rec.movieId);
+              return foundMovie || {
+                id: rec.movieId,
+                title: rec.title,
+                rating: rec.avgRating,
+                votes: 0,
+                year: 0,
+                genre: [],
+                duration: 120,
+                director: "Unknown",
+                cast: [],
+                overview: "",
+                poster: `https://via.placeholder.com/300x450/4ECDC4/FFFFFF?text=${encodeURIComponent(rec.title.substring(0, 20))}`,
+                backdrop: `https://via.placeholder.com/1200x600/4ECDC4/FFFFFF?text=${encodeURIComponent(rec.title)}`
+              };
+            })
+            .filter((movie: Movie) => movie !== null);
+
+          setRecommendedMovies(recommendedMoviesList);
+          console.log(`Loaded ${recommendedMoviesList.length} personalized recommendations`);
+        } else {
+          throw new Error("Invalid recommendations response format");
+        }
+      } catch (error) {
+        console.error("Error fetching recommendations:", error);
+        setRecommendationError(error instanceof Error ? error.message : "Failed to load recommendations");
+        // Fallback to popular movies
+        setRecommendedMovies([...movies].sort((a, b) => b.rating - a.rating).slice(0, 6));
+      } finally {
+        setIsLoadingRecommendations(false);
+      }
+    };
+
+    if (movies.length > 0) {
+      fetchRecommendations();
+    }
+  }, [movies, userRatings]);
+
   // Derived movie lists - each sorted and filtered by different criteria
   // Using useMemo prevents recalculation on every render, improving performance
   // Performance optimization is critical since movies can contain hundreds of entries
-  
-  // Recommendations: Top 6 highest rated movies from the entire catalog
-  // Simulates an AI recommendation engine by showing critically acclaimed films
-  // Real implementation would use MovieLens collaborative filtering algorithm
-  const recommendedMovies = useMemo(() => 
-    [...movies]
-      .sort((a, b) => b.rating - a.rating)
-      .slice(0, 6),
-    [movies]
-  );
 
   // Trending movies (most votes)
   const trendingMovies = useMemo(() => 
@@ -190,9 +255,14 @@ export function Dashboard({
             <Sparkles className="w-6 h-6 text-purple-500" />
             <h3 className="text-2xl font-semibold text-white">Recommended For You</h3>
           </div>
-          {isLoading ? <MovieGridSkeleton count={6} /> : (
+          {recommendationError && (
+            <div className="mb-4 p-4 bg-yellow-900/20 border border-yellow-600/30 rounded-lg text-yellow-400 text-sm">
+              {recommendationError} - Showing popular movies instead
+            </div>
+          )}
+          {isLoadingRecommendations ? <MovieGridSkeleton count={6} /> : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {recommendedMovies.map((movie) => (
+              {recommendedMovies.length > 0 ? recommendedMovies.map((movie) => (
                 <MovieCard
                   key={movie.id}
                   movie={movie}
@@ -204,7 +274,11 @@ export function Dashboard({
                   isInPersonalDashboard={personalDashboard.includes(movie.id)}
                   userRating={userRatings[movie.id]}
                 />
-              ))}
+              )) : (
+                <div className="col-span-full text-center text-zinc-400 py-8">
+                  Rate some movies to get personalized recommendations!
+                </div>
+              )}
             </div>
           )}
         </section>

@@ -28,6 +28,7 @@ import numpy as np
 # Import Sprint 2 components
 from recommendation_engine import RecommendationEngine
 from api_endpoints import router as recommendations_router, initialize_engine
+from firestore_sync import FirestoreRatingSync
 
 load_dotenv()
 
@@ -67,8 +68,11 @@ logger.info("✅ CORS middleware configured")
 
 
 # ============================================================
-# DATA MODELS
+# GLOBAL STATE
 # ============================================================
+
+# Background sync thread for Firestore ratings
+firestore_sync_thread = None
 
 class FeedbackRequest(BaseModel):
     """
@@ -343,7 +347,10 @@ async def startup_event():
     2. Load movies from Firestore
     3. Train recommendation engine
     4. Make available via /api/recommendations/* endpoints
+    5. Start background sync thread for Firebase ratings
     """
+    global firestore_sync_thread
+    
     logger.info("\n🚀 CineSense Backend Starting...\n")
     
     try:
@@ -353,7 +360,7 @@ async def startup_event():
         logger.info("📊 Loading data...")
         
         # Load ratings
-        ratings_path = "data/processed/ml-latest-small/ratings.csv"
+        ratings_path = "data/processed/ratings_processed.csv"
         if os.path.exists(ratings_path):
             ratings_df = pd.read_csv(ratings_path)
             logger.info(f"   ✓ Loaded {len(ratings_df):,} ratings")
@@ -378,11 +385,31 @@ async def startup_event():
         # Make available to API endpoints
         initialize_engine(engine)
         
+        # Start background Firestore sync thread
+        logger.info("\n🔄 Starting Firestore sync thread...")
+        firestore_sync_thread = FirestoreRatingSync(engine, sync_interval=300)  # Sync every 5 minutes
+        firestore_sync_thread.start()
+        logger.info("   ✅ Background sync thread started")
+        
         logger.info("✅ Backend initialization complete!\n")
         
     except Exception as e:
         logger.error(f"❌ Startup error: {str(e)}")
         logger.warning("⚠️  Recommendation engine not available - continuing without it")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown"""
+    global firestore_sync_thread
+    
+    logger.info("\n⏹️  CineSense Backend shutting down...")
+    
+    if firestore_sync_thread:
+        firestore_sync_thread.stop()
+        logger.info("   ✅ Firestore sync thread stopped")
+    
+    logger.info("✅ Backend shutdown complete\n")
 
 
 # ============================================================
@@ -416,6 +443,7 @@ if __name__ == "__main__":
     logger.info("   GET    /api/recommendations/similar/{movie_id}")
     logger.info("   POST   /api/recommendations/feedback")
     logger.info("   GET    /api/recommendations/status")
+    logger.info("   POST   /api/recommendations/sync-firestore  ← Manual sync trigger")
     
     logger.info("\n📧 Email Configuration:")
     logger.info(f"   From: {SENDER_EMAIL}")

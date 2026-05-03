@@ -71,13 +71,6 @@ export function Login({ onLogin }: LoginProps) {
         
         const user = await signInUser(email, password);
         
-        // Check if email is verified - must reload to get latest status
-        if (!user.emailVerified) {
-          setError("Please verify your email address before signing in. A verification link was sent to your email.");
-          setLoading(false);
-          return;
-        }
-        
         // Save email to localStorage if remember me is checked
         if (rememberMe) {
           localStorage.setItem("rememberMeEmail", email);

@@ -688,6 +688,101 @@ class RecommendationEngine:
         except Exception as e:
             logger.error(f"Error getting similar movies: {str(e)}")
             return []
+    
+    
+    # ============================================================
+    # DYNAMIC USER SUPPORT (For Firestore sync)
+    # ============================================================
+    
+    def add_firestore_users(self, all_ratings_df: pd.DataFrame, 
+                            firebase_ratings_df: pd.DataFrame):
+        """
+        ADD FIREBASE USERS TO ENGINE
+        ============================
+        
+        What: Dynamically add new Firebase users to the recommendation engine
+              without retraining from scratch
+        
+        Process:
+        --------
+        1. Update ratings dataframe with new Firebase ratings
+        2. Rebuild user-item matrix (adds new user rows)
+        3. Update user similarity matrix (only new rows)
+        4. Update item similarity matrix (full recalc, but same dims)
+        5. Retrain SVD with new data
+        6. Update index mappings
+        
+        Parameters:
+        -----------
+        all_ratings_df : pd.DataFrame
+            Combined MovieLens + Firebase ratings (userId, movieId, rating)
+        
+        firebase_ratings_df : pd.DataFrame
+            Only Firebase ratings (for logging purposes)
+        
+        Example:
+        --------
+        # User rated 5 movies
+        firebase_ratings = pd.DataFrame({
+            'userId': ['user_abc123', 'user_abc123', 'user_abc123', 'user_abc123', 'user_abc123'],
+            'movieId': [1, 5, 42, 100, 200],
+            'rating': [5, 4, 3, 5, 2]
+        })
+        
+        # Update engine
+        engine.add_firestore_users(all_ratings, firebase_ratings)
+        
+        # Now recommendations work!
+        recs = engine.get_recommendations('user_abc123', n=10)
+        """
+        logger.info("🔄 Adding Firebase users to recommendation engine...")
+        
+        try:
+            old_user_count = len(self.ratings_df['userId'].unique())
+            old_total_ratings = len(self.ratings_df)
+            
+            # Step 1: Update ratings
+            self.ratings_df = all_ratings_df.copy()
+            new_user_count = len(self.ratings_df['userId'].unique())
+            new_total_ratings = len(self.ratings_df)
+            new_users = new_user_count - old_user_count
+            
+            logger.info(f"   ✓ Updated ratings: {old_total_ratings} → {new_total_ratings} (+{new_total_ratings - old_total_ratings})")
+            logger.info(f"   ✓ Updated users: {old_user_count} → {new_user_count} (+{new_users})")
+            
+            # Step 2: Rebuild user-item matrix
+            logger.info("   📊 Rebuilding user-item matrix...")
+            old_matrix_shape = self.user_item_matrix.shape
+            self.user_item_matrix = self._build_user_item_matrix()
+            logger.info(f"      ✓ Matrix: {old_matrix_shape} → {self.user_item_matrix.shape}")
+            
+            # Step 3: Recompute similarities
+            logger.info("   👥 Recomputing user-user similarity...")
+            self.user_similarity_matrix = cosine_similarity(self.user_item_matrix)
+            logger.info(f"      ✓ User similarity: {self.user_similarity_matrix.shape}")
+            
+            logger.info("   🎬 Recomputing item-item similarity...")
+            self.item_similarity_matrix = cosine_similarity(self.user_item_matrix.T)
+            logger.info(f"      ✓ Item similarity: {self.item_similarity_matrix.shape}")
+            
+            # Step 4: Retrain SVD
+            logger.info("   🧠 Retraining SVD model...")
+            self.svd_model = self._train_svd()
+            logger.info(f"      ✓ SVD retrained")
+            
+            # Step 5: Update index mappings
+            logger.info("   🗂️  Updating index mappings...")
+            self.user_id_to_idx = {uid: idx for idx, uid in enumerate(self.user_item_matrix.index)}
+            self.idx_to_user_id = {idx: uid for uid, idx in self.user_id_to_idx.items()}
+            self.movie_id_to_idx = {mid: idx for idx, mid in enumerate(self.user_item_matrix.columns)}
+            self.idx_to_movie_id = {idx: mid for mid, idx in self.movie_id_to_idx.items()}
+            logger.info(f"      ✓ Mappings updated")
+            
+            logger.info(f"✅ Engine updated! Firebase users can now get recommendations\n")
+            
+        except Exception as e:
+            logger.error(f"❌ Error adding Firebase users: {str(e)}")
+            raise
 
 
 # ============================================================
