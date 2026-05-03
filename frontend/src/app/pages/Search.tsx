@@ -16,7 +16,7 @@
  * - searchQuery: text string for movie title search
  * - selectedGenres: array of genre strings (can select multiple)
  * - selectedYear: single year or null (mutually exclusive)
- * - minRating: number 0-10 for minimum rating threshold
+ * - minRating: number 0-5 for minimum rating threshold
  * - showFilters: boolean controlling filter panel visibility (mobile optimization)
  * - sortBy: "rating" | "year" | "title" - changes result order
  * 
@@ -46,6 +46,7 @@ import { MovieCard } from "../components/MovieCard";
 import { MovieGridSkeleton } from "../components/LoadingSkeleton";
 import { db } from "../../config/firebaseConfig";
 import { collection, getDocs, query, limit } from "firebase/firestore";
+import { getCachedPosterUrl } from "../services/posterService";
 
 interface SearchProps {
   onMovieClick: (movie: Movie) => void;
@@ -89,14 +90,9 @@ export function Search({
         
         const firestoreMovies = moviesSnapshot.docs.map((doc) => {
           const data = doc.data();
-          // Generate a consistent color-based image using title hash
-          const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8', 'F7DC6F', 'BB8FCE', '85C1E2'];
-          const hashCode = data.title?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) || 0;
-          const colorIndex = hashCode % colors.length;
-          const bgColor = colors[colorIndex];
           
           // Transform Firestore data to Movie interface
-          return {
+          const movie = {
             id: data.movieId || doc.id,
             title: data.title || "",
             year: data.year || 0,
@@ -107,9 +103,13 @@ export function Search({
             director: "Unknown",
             cast: [],
             overview: data.title || "",
-            poster: `https://via.placeholder.com/300x450/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title?.substring(0, 20) || 'Movie')}`,
-            backdrop: `https://via.placeholder.com/1200x600/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
+            poster: "",
+            backdrop: `https://via.placeholder.com/1200x600/4ECDC4/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
           } as Movie;
+          
+          // Get professional poster URL based on genre
+          movie.poster = getCachedPosterUrl(movie);
+          return movie;
         });
 
         if (firestoreMovies.length > 0) {
@@ -321,7 +321,7 @@ export function Search({
                 <input
                   type="range"
                   min="0"
-                  max="10"
+                  max="5"
                   step="0.5"
                   value={minRating}
                   onChange={(e) => setMinRating(Number(e.target.value))}
@@ -329,7 +329,7 @@ export function Search({
                 />
                 <div className="flex justify-between text-xs text-zinc-500 mt-1">
                   <span>0</span>
-                  <span>10</span>
+                  <span>5</span>
                 </div>
               </div>
 

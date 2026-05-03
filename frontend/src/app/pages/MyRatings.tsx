@@ -4,6 +4,7 @@ import { MovieCard } from "../components/MovieCard";
 import { useState, useEffect } from "react";
 import { db } from "../../config/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
+import { getCachedPosterUrl } from "../services/posterService";
 
 interface MyRatingsProps {
   userRatings: Record<number, number>;
@@ -119,12 +120,8 @@ export function MyRatings({
         
         const firestoreMovies = moviesSnapshot.docs.map((doc) => {
           const data = doc.data();
-          const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8', 'F7DC6F', 'BB8FCE', '85C1E2'];
-          const hashCode = data.title?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) || 0;
-          const colorIndex = hashCode % colors.length;
-          const bgColor = colors[colorIndex];
           
-          return {
+          const movie = {
             id: data.movieId || doc.id,
             title: data.title || "",
             year: data.year || 0,
@@ -135,9 +132,13 @@ export function MyRatings({
             director: "Unknown",
             cast: [],
             overview: "",
-            poster: `https://via.placeholder.com/300x450/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title?.substring(0, 20) || 'Movie')}`,
-            backdrop: `https://via.placeholder.com/1200x600/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
+            poster: "",
+            backdrop: `https://via.placeholder.com/1200x600/4ECDC4/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
           } as Movie;
+          
+          // Get professional poster URL based on genre
+          movie.poster = getCachedPosterUrl(movie);
+          return movie;
         });
 
         if (firestoreMovies.length > 0) {

@@ -35,10 +35,11 @@ import { TrendingUp, Sparkles, Clock, Star } from "lucide-react";
 import { Movie, mockMovies } from "../data/mockMovies";
 import { MovieCard } from "../components/MovieCard";
 import { MovieGridSkeleton } from "../components/LoadingSkeleton";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { db } from "../../config/firebaseConfig";
-import { collection, query, getDocs, limit, orderBy } from "firebase/firestore";
+import { collection, query, getDocs, limit, orderBy, startAfter, QueryConstraint, doc, getDoc, where } from "firebase/firestore";
 import { getCurrentUser } from "../../config/authService";
+import { getCachedPosterUrl } from "../services/posterService";
 
 interface DashboardProps {
   onMovieClick: (movie: Movie) => void;
@@ -64,64 +65,120 @@ export function Dashboard({
 }: DashboardProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [recommendedMovies, setRecommendedMovies] = useState<Movie[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const BATCH_SIZE = 50; // Fetch 50 movies at a time
 
-  // Fetch movies from Firestore
+  // Convert Firestore doc to Movie object
+  const docToMovie = useCallback((data: any, docId: string): Movie => {
+    const movie = {
+      id: data.movieId || docId,
+      title: data.title || "",
+      year: data.year || 0,
+      genre: Array.isArray(data.genres) ? data.genres : (data.genres?.split("|") || []),
+      rating: data.avgRating || 0,
+      votes: data.ratingCount || 0,
+      duration: 120,
+      director: "Unknown",
+      cast: [],
+      overview: "",
+      poster: "",  // Will be set by posterService
+      backdrop: `https://via.placeholder.com/1200x600/4ECDC4/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
+    } as Movie;
+
+    // Get professional poster URL based on genre
+    movie.poster = getCachedPosterUrl(movie);
+    return movie;
+  }, []);
+
+  // Fetch initial batch of movies from Firestore
   useEffect(() => {
     const fetchMovies = async () => {
       try {
-        console.log("🔄 Fetching all movies from Firestore...");
+        console.log("🔄 Fetching first batch of movies from Firestore...");
         const moviesCollection = collection(db, "movies");
-        // Remove limit to get ALL movies
-        const moviesSnapshot = await getDocs(moviesCollection);
+        
+        // Fetch only first BATCH_SIZE movies for fast initial load
+        const moviesQuery = query(
+          moviesCollection,
+          limit(BATCH_SIZE)
+        );
+        
+        const moviesSnapshot = await getDocs(moviesQuery);
         
         console.log(`✅ Retrieved ${moviesSnapshot.docs.length} movies from Firestore`);
         
         const firestoreMovies = moviesSnapshot.docs.map((doc) => {
           const data = doc.data();
-          // Generate a consistent color-based image using title hash
-          const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8', 'F7DC6F', 'BB8FCE', '85C1E2'];
-          const hashCode = data.title?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) || 0;
-          const colorIndex = hashCode % colors.length;
-          const bgColor = colors[colorIndex];
-          
-          // Transform Firestore data to Movie interface
-          return {
-            id: data.movieId || doc.id,
-            title: data.title || "",
-            year: data.year || 0,
-            genre: Array.isArray(data.genres) ? data.genres : (data.genres?.split("|") || []),
-            rating: data.avgRating || 0,
-            votes: data.ratingCount || 0,
-            duration: 120,
-            director: "Unknown",
-            cast: [],
-            overview: "",
-            poster: `https://via.placeholder.com/300x450/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title?.substring(0, 20) || 'Movie')}`,
-            backdrop: `https://via.placeholder.com/1200x600/${bgColor}/FFFFFF?text=${encodeURIComponent(data.title || 'Movie')}`
-          } as Movie;
+          return docToMovie(data, doc.id);
         });
 
         if (firestoreMovies.length > 0) {
-          console.log(`📊 Setting movies state with ${firestoreMovies.length} real movies`);
-          console.log("Sample movie:", firestoreMovies[0]);
+          console.log(`📊 Setting movies state with ${firestoreMovies.length} movies`);
           setMovies(firestoreMovies);
+          
+          // Store last document for pagination
+          if (moviesSnapshot.docs.length === BATCH_SIZE) {
+            setLastDoc(moviesSnapshot.docs[moviesSnapshot.docs.length - 1]);
+            setHasMore(true);
+          } else {
+            setHasMore(false);
+          }
         } else {
           console.warn("⚠️ No movies found in Firestore, falling back to mock data");
-          setMovies(mockMovies);
+          setMovies(mockMovies.slice(0, BATCH_SIZE));
+          setHasMore(false);
         }
         setIsLoading(false);
       } catch (error) {
         console.error("Error fetching movies from Firestore:", error);
-        // Fallback to mock data if Firestore fails
         setIsLoading(false);
       }
     };
 
     fetchMovies();
-  }, []);
+  }, [docToMovie]);
+
+  // Load more movies on demand
+  const loadMoreMovies = useCallback(async () => {
+    if (isLoadingMore || !hasMore || !lastDoc) return;
+    
+    try {
+      setIsLoadingMore(true);
+      console.log("⏳ Loading more movies...");
+      
+      const moviesCollection = collection(db, "movies");
+      const moviesQuery = query(
+        moviesCollection,
+        startAfter(lastDoc),
+        limit(BATCH_SIZE)
+      );
+      
+      const moviesSnapshot = await getDocs(moviesQuery);
+      
+      const newMovies = moviesSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return docToMovie(data, doc.id);
+      });
+
+      setMovies(prev => [...prev, ...newMovies]);
+      
+      if (moviesSnapshot.docs.length === BATCH_SIZE) {
+        setLastDoc(moviesSnapshot.docs[moviesSnapshot.docs.length - 1]);
+      } else {
+        setHasMore(false);
+      }
+      
+      setIsLoadingMore(false);
+    } catch (error) {
+      console.error("Error loading more movies:", error);
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, lastDoc, docToMovie]);
 
   // Fetch personalized recommendations from backend
   useEffect(() => {
@@ -154,13 +211,55 @@ export function Dashboard({
 
         if (data.recommendations && Array.isArray(data.recommendations)) {
           // Convert API recommendations to Movie objects
-          const recommendedMoviesList = data.recommendations
-            .map((rec: any) => {
-              const foundMovie = movies.find(m => m.id === rec.movieId);
-              return foundMovie || {
+          const recommendedMoviesList = await Promise.all(
+            data.recommendations.map(async (rec: any) => {
+              // Try to find the movie from the loaded movies first
+              const foundMovie = movies.find(m => m.id === rec.movieId || m.id === parseInt(rec.movieId));
+              if (foundMovie) {
+                console.log(`✓ Found recommendation ${rec.movieId} in loaded movies`);
+                return foundMovie;
+              }
+              
+              // If not found, fetch from Firestore to get genre information
+              console.log(`⏳ Fetching movie ${rec.movieId} from Firestore for genres...`);
+              try {
+                // Query movies by movieId field
+                const moviesRef = collection(db, 'movies');
+                const q = query(moviesRef, where('movieId', '==', rec.movieId));
+                const querySnapshot = await getDocs(q);
+                
+                if (!querySnapshot.empty) {
+                  const firestoreData = querySnapshot.docs[0].data();
+                  const movie = {
+                    id: rec.movieId,
+                    title: rec.title || firestoreData?.title || "",
+                    rating: rec.avgRating || firestoreData?.avgRating || 0,
+                    votes: firestoreData?.ratingCount || 0,
+                    year: firestoreData?.year || 0,
+                    genre: Array.isArray(firestoreData?.genres) 
+                      ? firestoreData.genres 
+                      : (firestoreData?.genres?.split("|") || []),
+                    duration: 120,
+                    director: "Unknown",
+                    cast: [],
+                    overview: "",
+                    poster: "",
+                    backdrop: `https://via.placeholder.com/1200x600/4ECDC4/FFFFFF?text=${encodeURIComponent(rec.title)}`
+                  } as Movie;
+                  
+                  movie.poster = getCachedPosterUrl(movie);
+                  console.log(`✓ Fetched recommendation ${rec.movieId} with genres:`, movie.genre);
+                  return movie;
+                }
+              } catch (err) {
+                console.warn(`Could not fetch movie ${rec.movieId} from Firestore:`, err);
+              }
+              
+              // Fallback: create without genres if Firestore fetch fails
+              const newMovie = {
                 id: rec.movieId,
-                title: rec.title,
-                rating: rec.avgRating,
+                title: rec.title || "",
+                rating: rec.avgRating || 0,
                 votes: 0,
                 year: 0,
                 genre: [],
@@ -168,13 +267,16 @@ export function Dashboard({
                 director: "Unknown",
                 cast: [],
                 overview: "",
-                poster: `https://via.placeholder.com/300x450/4ECDC4/FFFFFF?text=${encodeURIComponent(rec.title.substring(0, 20))}`,
+                poster: "",
                 backdrop: `https://via.placeholder.com/1200x600/4ECDC4/FFFFFF?text=${encodeURIComponent(rec.title)}`
-              };
-            })
-            .filter((movie: Movie) => movie !== null);
+              } as Movie;
 
-          setRecommendedMovies(recommendedMoviesList);
+              newMovie.poster = getCachedPosterUrl(newMovie);
+              return newMovie;
+            })
+          );
+
+          setRecommendedMovies(recommendedMoviesList.filter((movie: Movie) => movie !== null));
           console.log(`Loaded ${recommendedMoviesList.length} personalized recommendations`);
         } else {
           throw new Error("Invalid recommendations response format");
@@ -182,8 +284,14 @@ export function Dashboard({
       } catch (error) {
         console.error("Error fetching recommendations:", error);
         setRecommendationError(error instanceof Error ? error.message : "Failed to load recommendations");
-        // Fallback to popular movies
-        setRecommendedMovies([...movies].sort((a, b) => b.rating - a.rating).slice(0, 6));
+        // Fallback to popular movies based on rating
+        if (movies.length > 0) {
+          const popularMovies = [...movies]
+            .filter((m) => m.rating > 0)
+            .sort((a, b) => b.rating - a.rating)
+            .slice(0, 6);
+          setRecommendedMovies(popularMovies);
+        }
       } finally {
         setIsLoadingRecommendations(false);
       }
@@ -199,12 +307,17 @@ export function Dashboard({
   // Performance optimization is critical since movies can contain hundreds of entries
 
   // Trending movies (most votes)
-  const trendingMovies = useMemo(() => 
-    [...movies]
-      .sort((a, b) => b.votes - a.votes)
-      .slice(0, 6),
-    [movies]
-  );
+  const trendingMovies = useMemo(() => {
+    // Sort by votes (rating count) and show top 6
+    // If no movies with votes, show by rating
+    const sorted = [...movies].sort((a, b) => {
+      if (b.votes === 0 && a.votes === 0) {
+        return b.rating - a.rating;
+      }
+      return b.votes - a.votes;
+    });
+    return sorted.slice(0, 6);
+  }, [movies]);
 
   // Recently added (newest first)
   const recentMovies = useMemo(() => 
@@ -214,14 +327,16 @@ export function Dashboard({
     [movies]
   );
 
-  // Top rated
-  const topRatedMovies = useMemo(() => 
-    [...movies]
-      .filter((m) => m.rating >= 8.0)
+  // Top rated - show highest rated movies
+  // Start with all movies, sort by rating, take top 6
+  const topRatedMovies = useMemo(() => {
+    if (movies.length === 0) return [];
+    
+    return [...movies]
+      .filter((m) => m.rating > 0) // Only include movies with ratings
       .sort((a, b) => b.rating - a.rating)
-      .slice(0, 6),
-    [movies]
-  );
+      .slice(0, 6);
+  }, [movies]);
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -354,6 +469,19 @@ export function Dashboard({
               />
             ))}
           </div>
+          
+          {/* Load More Button */}
+          {hasMore && (
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={loadMoreMovies}
+                disabled={isLoadingMore}
+                className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-900 text-white rounded-lg font-semibold transition"
+              >
+                {isLoadingMore ? "Loading..." : "Load More Movies"}
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Quick Access to Personal Dashboard */}
